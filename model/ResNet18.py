@@ -37,8 +37,8 @@ class ResNet18(nn.Module):
 
     def forward(self, x):
         x = self.feature_extraction(x)#[128, 512, 7, 7]
-        print("conv1x1")
-        print(x.shape)
+        #print("conv1x1")
+        #print(x.shape)
 
         
         if self.pool_type == 'avgpool':
@@ -49,8 +49,8 @@ class ResNet18(nn.Module):
             x = self.conv1x1(x)
         else:
             return x
-        print("fc")
-        print(x.shape)
+        #print("fc")
+        #print(x.shape)
         if self.with_fc:
             x = x.view(x.size(0), -1) # we want to flatten the vector, x.size(0) holds the number of pictures/spectograms
             x = self.fc(x)

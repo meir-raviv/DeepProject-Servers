@@ -60,22 +60,22 @@ class AudioVisualSeparator(nn.Module):
     '''X is the input and will in a format of a dictionary with several entries'''
     def forward(self, X):
         vid_ids = X['ids']           # + [X['obj2']['id']]
-        audio_mags = X['audio_mags']            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
-        mixed_audio = X['mixed_audio']
+        audio_mags = X['audio_mags'].view(32, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
+        mixed_audio = X['mixed_audio'].view(32, 1, 512, 256)
         detected_objects = X['detections']
         classes = X['classes']
 
           # warp the spectrogram
-        B = mixed_audio.size(0) * mixed_audio.size(1)
+        B = mixed_audio.size(0)     # * mixed_audio.size(1)
         T = mixed_audio.size(3)
         
         grid_warp = torch.from_numpy(warpgrid(B, 256, T, warp=True)).to(self.device)
-        mixed_audio_simple = mixed_audio[:, 0]
-        mixed_audio = F.grid_sample(mixed_audio_simple, grid_warp)
+        #mixed_audio_simple = mixed_audio[:, 0]
+        mixed_audio = F.grid_sample(mixed_audio, grid_warp)
         audio_mags = F.grid_sample(audio_mags, grid_warp)
 
         log_mixed_audio = torch.log(mixed_audio).detach()
-        log_mixed_audio = log_mixed_audio.view(128, 1, 512, 256)
+        log_mixed_audio = log_mixed_audio.view(32, 1, 256, 256)
 
         ''' mixed audio and audio are after STFT '''
         

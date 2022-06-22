@@ -46,14 +46,14 @@ class Trainer(BaseTrainer):
             #data, target = pick.to(self.device), None#, target.to(self.device)
             #pick['mixed_audio'] = pick['mixed_audio'].view(4, 15, 512, 256)
             pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
-            pick['detections'] = pick['detections'].view(32*4, 3, 224, 224)
+            pick['detections'] = pick['detections'].view(32, 3, 224, 224)
             pick['detections'] = pick['detections'].to(self.device)
             pick['classes'] = pick['classes'].to(self.device)
             
 
             self.optimizer.zero_grad()
             output = self.model(pick)
-            loss = self.criterion(output, pick)
+            loss = self.criterion(output["ground_masks"], output["predicted_spectrograms"])
             loss.backward()
             self.optimizer.step()
 
