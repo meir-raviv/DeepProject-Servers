@@ -1,0 +1,2 @@
+#1 - i changed file parser.py in pytube such that in line 293 name = "iha" according to advise on 
+     "stackoverflow.com/questions/70060263/pytube-attributeerror-nontypeobject-has-no-attribute-span"

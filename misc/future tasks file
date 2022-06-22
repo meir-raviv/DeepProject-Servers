@@ -1,0 +1,5 @@
+# DeepProject
++ finished audio_visual model
+- need to configure MUSIC datased (and loader), the input for the audio_visual model (denoted as X) needs to be ready.
+- configure all the flow and loss calculations, epochs etc.
+- visualizations?
