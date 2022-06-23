@@ -3,7 +3,7 @@ import torch
 from torchvision.utils import make_grid
 from base.base_trainer import BaseTrainer
 from utils import inf_loop, MetricTracker
-
+from model import loss
 
 class Trainer(BaseTrainer):
     """
@@ -53,8 +53,26 @@ class Trainer(BaseTrainer):
 
             self.optimizer.zero_grad()
             output = self.model(pick)
-            loss = self.criterion(output["ground_masks"], output["predicted_spectrograms"])
-            loss.backward()
+
+            ground_masks = output["ground_masks"]
+            predicted_spectrograms = output["predicted_spectrograms"]
+            weights = output["weights"]
+            for idx in range(len(output["labels"])-1, -1, -1):
+                label = output["labels"]
+                if label == -1:
+                    del ground_masks[idx]
+                    del predicted_spectrograms[idx]
+                    del weights[idx]
+            
+            for idx in range(len(predicted_spectrograms)):
+                predicted_spectrograms = torch.clamp(predicted_spectrograms, 0, 1)
+
+            # should we mul with weights the result of loss?
+            coseparation_loss = self.criterion(ground_masks, predicted_spectrograms, weights)
+            consistency_loss = loss.ce_loss()
+
+            coseparation_loss.backward()
+            consistency_loss.backward()
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
