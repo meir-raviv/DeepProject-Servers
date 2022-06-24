@@ -60,10 +60,13 @@ class AudioVisualSeparator(nn.Module):
     '''X is the input and will in a format of a dictionary with several entries'''
     def forward(self, X):
         vid_ids = X['ids']           # + [X['obj2']['id']]
-        audio_mags = X['audio_mags'].view(32, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
-        mixed_audio = X['mixed_audio'].view(32, 1, 512, 256)
+        bs = X["detections"].shape[0]
+        audio_mags = X['audio_mags'].view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
+        mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256)
         detected_objects = X['detections']
         classes = X['classes']
+        for idx, _ in enumerate(classes):
+            classes[idx] -= 1
 
           # warp the spectrogram
         B = mixed_audio.size(0)     # * mixed_audio.size(1)
@@ -75,7 +78,7 @@ class AudioVisualSeparator(nn.Module):
         audio_mags = F.grid_sample(audio_mags, grid_warp)
 
         log_mixed_audio = torch.log(mixed_audio).detach()
-        log_mixed_audio = log_mixed_audio.view(32, 1, 256, 256)
+        log_mixed_audio = log_mixed_audio.view(bs, 1, 256, 256)
 
         ''' mixed audio and audio are after STFT '''
         
@@ -85,7 +88,7 @@ class AudioVisualSeparator(nn.Module):
         ground_mask = ground_mask.clamp(0, 5)
 
         # Resnet18 for the visual part of the detected object
-        print(detected_objects.shape)
+        #print(detected_objects.shape)
         visual_vecs = self.visual(Variable(detected_objects, requires_grad=False))
 
         mask_preds = self.uNet7Layer(log_mixed_audio, visual_vecs)
@@ -94,13 +97,13 @@ class AudioVisualSeparator(nn.Module):
 
         # after this there will be an iSTFT in the next layer of the net if we would like to hear the sound...
 
-        spectro = torch.log(masks_applied + 1e-10)  # get log spectrogram
+        spectro = torch.log(masks_applied + 1e-10)[:, 0, :, :] .view(bs, 1, 256, 256)  # get log spectrogram
 
         # loss weights
         weights = torch.log1p(mixed_audio)
         weights = torch.clamp(weights, 1e-3, 10)
 
-        audio_label_preds = self.classifier.get_audio_classification(spectro)
+        audio_label_preds = self.classifier.get_audio_classification().forward(spectro)
 
         return {"ground_masks" : ground_mask, "ground_labels" : classes, "predicted_audio_labels" : audio_label_preds,
                 "predicted_masks" : mask_preds, "predicted_spectrograms" : masks_applied,
