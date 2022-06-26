@@ -88,8 +88,8 @@ class Trainer(BaseTrainer):
                     pred_labels = np.delete(pred_labels, idx, axis=0)
                     labels = np.delete(labels, idx, axis=0)
             
-            print("-------")
-            print(pred_labels.shape)
+            #print("-------")
+            #print(pred_labels.shape)
             
             for idx in range(len(predicted_spectrograms)):
 #                predicted_spectrograms[idx] = torch.clamp(torch.from_numpy(predicted_spectrograms[idx]), 0, 1)
@@ -118,9 +118,9 @@ class Trainer(BaseTrainer):
             # should we mul with weights the result of loss?
             coseparation_loss = self.criterion(Variable(predicted_spectrograms, requires_grad=True), Variable(ground_masks, requires_grad=False), weights)
             
-            print("-------")
-            print(pred_labels.shape)
-            print(labels.shape)
+            #print("-------")
+            #print(pred_labels.shape)
+            #print(labels.shape)
 
             consistency_loss = loss.ce_loss(Variable(pred_labels, requires_grad=True), Variable(labels, requires_grad=False)) * 0.01    #lambda
             sum_loss = consistency_loss + coseparation_loss
@@ -163,17 +163,61 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                data, target = data.to(self.device), target.to(self.device)
+            for batch_idx, pick in enumerate(self.valid_data_loader):
+                pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
+                bs = pick["detections"].shape[0] * pick["detections"].shape[1]
+                pick['detections'] = pick['detections'].view(bs, 3, 224, 224)
+                pick['detections'] = pick['detections'].to(self.device)
+                pick['classes'] = pick['classes'].to(self.device)
+                
+                output = self.model(pick)
 
-                output = self.model(data)
-                loss = self.criterion(output, target)
+                ground_masks = output["ground_masks"].numpy()
+                predicted_spectrograms = output["predicted_masks"].clone().detach().numpy()
+                weights = output["weights"]
+                weights = weights.view(bs, weights.shape[2], weights.shape[3]).numpy()
+
+                labels = output["ground_labels"].view(-1).numpy()   #.astype(np.float32)
+                
+                pred_labels= output['predicted_audio_labels'].clone().detach().numpy()  #.view(-1).numpy()
+                
+
+                for idx in range(len(labels)-1, -1, -1):
+                    if labels[idx] == -2:
+                        ground_masks = np.delete(ground_masks, idx, axis=0)
+                        predicted_spectrograms = np.delete(predicted_spectrograms, idx, axis=0)
+                        weights = np.delete(weights, idx, axis=0)
+                        pred_labels = np.delete(pred_labels, idx, axis=0)
+                        labels = np.delete(labels, idx, axis=0)
+                
+                for idx in range(len(predicted_spectrograms)):
+                    predicted_spectrograms[idx] = np.clip(predicted_spectrograms[idx], 0, 1)
+                    ground_masks[idx] = np.clip(ground_masks[idx], 0, 1)
+                
+                weights = np.expand_dims(weights, axis=1)
+                ground_masks = torch.from_numpy(ground_masks)
+
+                predicted_spectrograms = predicted_spectrograms[:, 0, :, :]
+                predicted_spectrograms = np.expand_dims(predicted_spectrograms, axis = 1)
+                predicted_spectrograms = torch.from_numpy(predicted_spectrograms)
+                
+                weights = torch.from_numpy(weights)
+
+                pred_labels = torch.from_numpy(pred_labels)
+                labels = torch.from_numpy(labels)
+
+                coseparation_loss = self.criterion(Variable(predicted_spectrograms, requires_grad=True), Variable(ground_masks, requires_grad=False), weights)
+                
+
+                consistency_loss = loss.ce_loss(Variable(pred_labels, requires_grad=True), Variable(labels, requires_grad=False)) * 0.01    #lambda
+                sum_loss = consistency_loss + coseparation_loss
+
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.valid_metrics.update('loss', loss.item())
+                self.valid_metrics.update('loss', sum_loss.item())
                 for met in self.metric_ftns:
-                    self.valid_metrics.update(met.__name__, met(output, target))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                    self.valid_metrics.update(met.__name__, met(pred_labels, labels))
+                self.writer.add_image('input', make_grid(pick['detections'].cpu(), nrow=8, normalize=True))
 
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
