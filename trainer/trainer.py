@@ -1,3 +1,4 @@
+from matplotlib.afm import CompositePart
 import numpy as np
 import torch
 from torch.autograd import Variable
@@ -54,23 +55,23 @@ class Trainer(BaseTrainer):
             pick['classes'] = pick['classes'].to(self.device)
             
 
-            self.optimizer.zero_grad()
+            self.model.zero_grad()
             output = self.model(pick)
 
-            ground_masks = output["ground_masks"].numpy()
+            ground_masks = output["ground_masks"]#.numpy()
             #print(ground_masks.shape)
             #ground_masks = ground_masks.view(32, ground_masks.shape[2], ground_masks.shape[3])
-            predicted_spectrograms = output["predicted_masks"].clone().detach().numpy()
+            predicted_masks = output["predicted_masks"]#.clone()#.detach().numpy()
             #print(predicted_spectrograms.shape)
             #predicted_spectrograms = predicted_spectrograms.view(32, predicted_spectrograms.shape[2], predicted_spectrograms.shape[3])
             weights = output["weights"]
             #print(weights.shape)
-            weights = weights.view(bs, weights.shape[2], weights.shape[3]).numpy()
+            #weights = weights.view(bs, 1, weights.shape[2], weights.shape[3])#.numpy()
 
             #start from 0?
-            labels = output["ground_labels"].view(-1).numpy()   #.astype(np.float32)
+            labels = output["ground_labels"].view(-1)#.numpy()   #.astype(np.float32)
             
-            pred_labels= output['predicted_audio_labels'].clone().detach().numpy()  #.view(-1).numpy()
+            pred_labels= output['predicted_audio_labels']#.clone()#.detach().numpy()  #.view(-1).numpy()
             #pred_labels = np.zeros(32)
             
             #for idx in range(len(predicted_labels)-1, -1, -1):
@@ -78,53 +79,103 @@ class Trainer(BaseTrainer):
             
             #print(ground_masks[0])
 
-            for idx in range(len(labels)-1, -1, -1):
-                #print(labels[idx])
-                if labels[idx] == -2:
-                    #print(idx)
-                    ground_masks = np.delete(ground_masks, idx, axis=0)
-                    predicted_spectrograms = np.delete(predicted_spectrograms, idx, axis=0)
+            '''
+            for idx in range(len(labels)-1, -1, -2):
+                ground_masks = np.delete(ground_masks, idx, axis=0)
+                if labels[idx] != -2:
+                    predicted_masks[idx - 1] += predicted_masks[idx]        
                     weights = np.delete(weights, idx, axis=0)
                     pred_labels = np.delete(pred_labels, idx, axis=0)
-                    labels = np.delete(labels, idx, axis=0)
+                    labels = np.delete(labels, idx, axis=0)        
+                predicted_masks = np.delete(predicted_masks, idx, axis=0)
+            '''
+
+
+
+            # for idx in range(len(labels)-1, -1, -1):
+            #     #print(labels[idx])
+            #     if labels[idx] == -2:
+            #         #print(idx)
+            #         ground_masks = np.delete(ground_masks, idx, axis=0)
+            #         predicted_masks = np.delete(predicted_masks, idx, axis=0)
+            #         weights = np.delete(weights, idx, axis=0)
+            #         pred_labels = np.delete(pred_labels, idx, axis=0)
+            #         labels = np.delete(labels, idx, axis=0)
             
             #print("-------")
             #print(pred_labels.shape)
             
-            for idx in range(len(predicted_spectrograms)):
+            '''
+            for idx in range(len(predicted_masks)):
 #                predicted_spectrograms[idx] = torch.clamp(torch.from_numpy(predicted_spectrograms[idx]), 0, 1)
-                predicted_spectrograms[idx] = np.clip(predicted_spectrograms[idx], 0, 1)
+                predicted_masks[idx] = np.clip(predicted_masks[idx], 0, 1)
                 ground_masks[idx] = np.clip(ground_masks[idx], 0, 1)
+            '''
+
+
 
                 #should we clamp input also>?????
             
+            '''
             weights = np.expand_dims(weights, axis=1)
             ground_masks = torch.from_numpy(ground_masks)
+            '''
+            #torch.unsqueeze(weights, 1)
 
             #??????????????
-            predicted_spectrograms = predicted_spectrograms[:, 0, :, :]
-            predicted_spectrograms = np.expand_dims(predicted_spectrograms, axis = 1)
-            predicted_spectrograms = torch.from_numpy(predicted_spectrograms)
+            #predicted_spectrograms = predicted_spectrograms[:, 0, :, :]
+            #predicted_spectrograms = np.expand_dims(predicted_spectrograms, axis = 1)
+            
+            '''
+            predicted_masks = torch.from_numpy(predicted_masks)#.squeeze(axis=1)
             
             weights = torch.from_numpy(weights)
 
             pred_labels = torch.from_numpy(pred_labels)
             labels = torch.from_numpy(labels)
+            '''
 
+
+
+            # for i in range(len(labels)):
+            #     print("ground : " + str(labels[i]))
+            #     n = -1
+            #     jj = -1
+            #     for j, k in enumerate(pred_labels[i]):
+            #         if k > n:
+            #             n = k
+            #             jj = j
+            #     print("pred : " + str(jj))
+            #     print()
+            # print("next")
+
+            
             #print(ground_masks.shape)
             #print(predicted_spectrograms.shape)
             #print(weights.shape)
 
             # should we mul with weights the result of loss?
-            coseparation_loss = self.criterion(Variable(predicted_spectrograms, requires_grad=True), Variable(ground_masks, requires_grad=False), weights)
             
+            #coseparation_loss = 0
+            coseparation_loss = 0
+            for idx in range(len(labels)-1, -1, -2):
+                if labels[idx] == 0:
+                    #predicted_masks[idx] = predicted_masks[idx] * 0
+                    coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
+                else:
+                    coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
+            #coseparation_loss = torch.FloatTensor(coseparation_loss)
+            coseparation_loss = coseparation_loss /32
             #print("-------")
             #print(pred_labels.shape)
             #print(labels.shape)
 
-            consistency_loss = loss.ce_loss(Variable(pred_labels, requires_grad=True), Variable(labels, requires_grad=False)) * 0.01    #lambda
-            sum_loss = consistency_loss + coseparation_loss
-            consistency_loss.backward(retain_graph=True)
+            lamda = 0.01
+            #consistency_loss = loss.ce_loss(pred_labels, Variable(labels, requires_grad=False)) * lamda
+            sum_loss = coseparation_loss #+ consistency_loss
+            
+            self.optimizer.zero_grad()
+            #consistency_loss.backward(retain_graph=True)
             coseparation_loss.backward()
 
             self.optimizer.step()
@@ -141,6 +192,7 @@ class Trainer(BaseTrainer):
                     self._progress(batch_idx),
                     sum_loss.item()))
                 self.writer.add_image('input', make_grid(pick['detections'].cpu(), nrow=8, normalize=True))
+            
 
             if batch_idx == self.len_epoch:
                 break
@@ -172,44 +224,46 @@ class Trainer(BaseTrainer):
                 
                 output = self.model(pick)
 
-                ground_masks = output["ground_masks"].numpy()
-                predicted_spectrograms = output["predicted_masks"].clone().detach().numpy()
+                ground_masks = output["ground_masks"]#.numpy()
+                predicted_masks = output["predicted_masks"]#.clone().detach().numpy()
                 weights = output["weights"]
                 weights = weights.view(bs, weights.shape[2], weights.shape[3]).numpy()
 
-                labels = output["ground_labels"].view(-1).numpy()   #.astype(np.float32)
+                labels = output["ground_labels"].view(-1)#.numpy()   #.astype(np.float32)
                 
-                pred_labels= output['predicted_audio_labels'].clone().detach().numpy()  #.view(-1).numpy()
+                pred_labels= output['predicted_audio_labels']#.clone().detach().numpy()  #.view(-1).numpy()
                 
 
+                '''
                 for idx in range(len(labels)-1, -1, -1):
                     if labels[idx] == -2:
                         ground_masks = np.delete(ground_masks, idx, axis=0)
-                        predicted_spectrograms = np.delete(predicted_spectrograms, idx, axis=0)
+                        predicted_masks = np.delete(predicted_masks, idx, axis=0)
                         weights = np.delete(weights, idx, axis=0)
                         pred_labels = np.delete(pred_labels, idx, axis=0)
                         labels = np.delete(labels, idx, axis=0)
                 
-                for idx in range(len(predicted_spectrograms)):
-                    predicted_spectrograms[idx] = np.clip(predicted_spectrograms[idx], 0, 1)
+                for idx in range(len(predicted_masks)):
+                    predicted_masks[idx] = np.clip(predicted_masks[idx], 0, 1)
                     ground_masks[idx] = np.clip(ground_masks[idx], 0, 1)
                 
                 weights = np.expand_dims(weights, axis=1)
                 ground_masks = torch.from_numpy(ground_masks)
 
-                predicted_spectrograms = predicted_spectrograms[:, 0, :, :]
-                predicted_spectrograms = np.expand_dims(predicted_spectrograms, axis = 1)
-                predicted_spectrograms = torch.from_numpy(predicted_spectrograms)
+                predicted_masks = predicted_masks[:, 0, :, :]
+                predicted_masks = np.expand_dims(predicted_masks, axis = 1)
+                predicted_masks = torch.from_numpy(predicted_masks)
                 
                 weights = torch.from_numpy(weights)
 
                 pred_labels = torch.from_numpy(pred_labels)
                 labels = torch.from_numpy(labels)
+                '''
 
-                coseparation_loss = self.criterion(Variable(predicted_spectrograms, requires_grad=True), Variable(ground_masks, requires_grad=False), weights)
+                coseparation_loss = self.criterion(predicted_masks, ground_masks)
                 
-
-                consistency_loss = loss.ce_loss(Variable(pred_labels, requires_grad=True), Variable(labels, requires_grad=False)) * 0.01    #lambda
+                lamda = 0.01
+                consistency_loss = loss.ce_loss(pred_labels, Variable(labels, requires_grad=False)) * lamda
                 sum_loss = consistency_loss + coseparation_loss
 
 

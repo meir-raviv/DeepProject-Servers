@@ -7,19 +7,14 @@ import torchvision.transforms as T
 import pickle
 import numpy as np
 import torch
-
-
-'''
-classes_dict = {'Banjo':1, 'Cello':2, 'Drum':3, 'Guitar':4,
-                       'Harp':5, 'Harmonica':6, 'Oboe':7, 'clarinet':7, 'Piano':8, 'xylophone':8, 'Saxophone':9,
-                       'Trombone':10, 'Trumpet':11, 'Violin':12, 'Flute':13,
-                       'Accordion':14, 'Horn':15, 'tuba':15, 'erhu':99}
-'''
+import matplotlib.pyplot as plt
+from torchvision import datasets, transforms
+#from playsound import playsound
 
 # the files in data_dir will be enumerated from 000000, and contain pickles objects
 class MusicDataset(Dataset):
 
-    def __init__(self, data_dir, transform, log=None, train=True):
+    def __init__(self, data_dir="/dsi/gannot-lab/datasets/Music/Batches", transform=None, log=None, train=True):
         self.log = log
         if self.log is None:
             try:
@@ -28,7 +23,10 @@ class MusicDataset(Dataset):
                 self.log = open(r"/dsi/gannot-lab/datasets/Music/Logs/RunLog.txt", "w")
 
         self.dir_path = data_dir
-        self.transform = transform
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.2971, 0.3311, 0.4041), (0.0418, 0.0450, 0.0457))
+        ])
         self.size = 0
 
         try:
@@ -107,9 +105,9 @@ class MusicDataset(Dataset):
         num_objs = 4
         for n in range(num_objs):
             mixed_audio.append(torch.FloatTensor(mix).unsqueeze(0))
-        #mixed_audio = np.vstack(mixed_audio)
-        #mixed_audio = mixed_audio + 1e-10  # in order to make sure we don't divide by 0
-        #mixed_audio = mixed_audio
+        mixed_audio = np.vstack(mixed_audio)
+        mixed_audio = mixed_audio + 1e-10  # in order to make sure we don't divide by 0
+        mixed_audio = mixed_audio
         pick_dict['mixed_audio'] = np.vstack(mixed_audio)
 
         return pick_dict
@@ -128,3 +126,26 @@ pad with 0 or -1 and have 4 objects every time
 define __len__ in dataset?
 p
 '''
+
+
+ds = MusicDataset()
+pick = ds.__getitem__(0)
+index = 200
+
+pickle_idx = str(index).zfill(6) + '.pickle'
+file_path = os.path.join(ds.dir_path, pickle_idx)
+try:
+    mix_file = open(file_path, 'rb')
+    pick = pickle.load(mix_file)
+    mix_file.close()
+except OSError:
+    pick = None
+    print("Error")
+
+im = pick['obj2']['images'][0][1] / 255
+print(im)
+plt.imshow(im)
+plt.show()
+
+au = pick['obj2']['wave']
+playsound(au[0])

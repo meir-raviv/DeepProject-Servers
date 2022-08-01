@@ -3,7 +3,7 @@ import torch
 import torchvision
 
 class UNet7Layer(nn.Module):
-    def __init__(self, input=2, next_layer_frames=64, output=2):
+    def __init__(self, input=2, next_layer_frames=64, output=1):
         super(UNet7Layer, self).__init__()
         self.down_layer1 = nn.Sequential(*[nn.Conv2d(in_channels=input, out_channels=next_layer_frames, kernel_size=4, stride=2, padding=1),
                                       nn.BatchNorm2d(next_layer_frames),

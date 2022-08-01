@@ -62,11 +62,18 @@ class AudioVisualSeparator(nn.Module):
         vid_ids = X['ids']           # + [X['obj2']['id']]
         bs = X["detections"].shape[0]
         audio_mags = X['audio_mags'].view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
-        mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256)
+        mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256) + 1e-10
         detected_objects = X['detections']
         classes = X['classes']
+
         for idx, _ in enumerate(classes):
             classes[idx] -= 1
+            
+        for idx1, obj in enumerate(classes):
+            for idx2, _ in enumerate(obj):
+                if classes[idx1][idx2] == -2:
+                    classes[idx1][idx2] = 0
+
 
           # warp the spectrogram
         B = mixed_audio.size(0)     # * mixed_audio.size(1)
@@ -86,6 +93,7 @@ class AudioVisualSeparator(nn.Module):
         ground_mask = audio_mags / mixed_audio     #list of masks per video
         #should we clamp ? -
         ground_mask = ground_mask.clamp(0, 5)
+        ground_mask = F.grid_sample(ground_mask, grid_warp)
 
         # Resnet18 for the visual part of the detected object
         #print(detected_objects.shape)
@@ -97,13 +105,14 @@ class AudioVisualSeparator(nn.Module):
 
         # after this there will be an iSTFT in the next layer of the net if we would like to hear the sound...
 
-        spectro = torch.log(masks_applied + 1e-10)[:, 0, :, :] .view(bs, 1, 256, 256)  # get log spectrogram
+        spectro = torch.log(masks_applied + 1e-10)#.view(bs, 1, 256, 256)  # get log spectrogram
 
         # loss weights
         weights = torch.log1p(mixed_audio)
         weights = torch.clamp(weights, 1e-3, 10)
 
-        audio_label_preds = self.classifier.get_audio_classification().forward(spectro)
+        audio_label_preds = self.classifier.get_audio_classification().forward(spectro) * 0
+        
 
         return {"ground_masks" : ground_mask, "ground_labels" : classes, "predicted_audio_labels" : audio_label_preds,
                 "predicted_masks" : mask_preds, "predicted_spectrograms" : masks_applied,
