@@ -37,6 +37,7 @@ class Trainer(BaseTrainer):
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
     def _train_epoch(self, epoch):
+        print("start train epoch")
         """
         Training logic for an epoch
         :param epoch: Integer, current training epoch.
@@ -69,7 +70,7 @@ class Trainer(BaseTrainer):
             #weights = weights.view(bs, 1, weights.shape[2], weights.shape[3])#.numpy()
 
             #start from 0?
-            labels = output["ground_labels"].view(-1)#.numpy()   #.astype(np.float32)
+            labels = output["ground_labels"]#.view(-1)#.numpy()   #.astype(np.float32)
             
             pred_labels= output['predicted_audio_labels']#.clone()#.detach().numpy()  #.view(-1).numpy()
             #pred_labels = np.zeros(32)
@@ -157,15 +158,25 @@ class Trainer(BaseTrainer):
             # should we mul with weights the result of loss?
             
             #coseparation_loss = 0
-            coseparation_loss = 0
-            for idx in range(len(labels)-1, -1, -2):
-                if labels[idx] == 0:
-                    #predicted_masks[idx] = predicted_masks[idx] * 0
-                    coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
-                else:
-                    coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
-            #coseparation_loss = torch.FloatTensor(coseparation_loss)
-            coseparation_loss = coseparation_loss /32
+            vec = torch.ones(predicted_masks.shape)
+
+            for idx in range(len(labels)-1, -1, -2):                
+                vec[idx] = torch.ones(vec[idx].shape)
+                #if labels[idx] != 15:
+                    #predicted_masks[idx-1] += predicted_masks[idx]
+            
+            coseparation_loss = self.criterion((predicted_masks * vec).view(16, 2, 1, 256, 256), (ground_masks * vec).view(16, 2, 1, 256, 256))#, weights)
+            
+            # for idx in range(len(labels)-1, -1, -2):
+                
+            #     if labels[idx] == 15:
+            #         #predicted_masks[idx] = predicted_masks[idx] * 0
+            #         coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
+            #     else:
+            #         coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
+            # #coseparation_loss = torch.FloatTensor(coseparation_loss)
+            # coseparation_loss = coseparation_loss /32
+
             #print("-------")
             #print(pred_labels.shape)
             #print(labels.shape)
@@ -204,6 +215,7 @@ class Trainer(BaseTrainer):
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
+        print("done train epoch")
         return log
 
     def _valid_epoch(self, epoch):
@@ -227,7 +239,7 @@ class Trainer(BaseTrainer):
                 ground_masks = output["ground_masks"]#.numpy()
                 predicted_masks = output["predicted_masks"]#.clone().detach().numpy()
                 weights = output["weights"]
-                weights = weights.view(bs, weights.shape[2], weights.shape[3]).numpy()
+                #weights = weights.view(bs, weights.shape[2], weights.shape[3]).numpy()
 
                 labels = output["ground_labels"].view(-1)#.numpy()   #.astype(np.float32)
                 
@@ -260,11 +272,21 @@ class Trainer(BaseTrainer):
                 labels = torch.from_numpy(labels)
                 '''
 
-                coseparation_loss = self.criterion(predicted_masks, ground_masks)
+                #coseparation_loss = self.criterion(predicted_masks, ground_masks)
+                
+                coseparation_loss = 0
+                for idx in range(len(labels)-1, -1, -2):
+                    if labels[idx] == 15:
+                        #predicted_masks[idx] = predicted_masks[idx] * 0
+                        coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
+                    else:
+                        coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
+                #coseparation_loss = torch.FloatTensor(coseparation_loss)
+                coseparation_loss = coseparation_loss / 32
                 
                 lamda = 0.01
-                consistency_loss = loss.ce_loss(pred_labels, Variable(labels, requires_grad=False)) * lamda
-                sum_loss = consistency_loss + coseparation_loss
+                #consistency_loss = loss.ce_loss(pred_labels, Variable(labels, requires_grad=False)) * lamda
+                sum_loss = coseparation_loss    # + consistency_loss
 
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
@@ -274,8 +296,20 @@ class Trainer(BaseTrainer):
                 self.writer.add_image('input', make_grid(pick['detections'].cpu(), nrow=8, normalize=True))
 
         # add histogram of model parameters to the tensorboard
+        i = 1
         for name, p in self.model.named_parameters():
-            self.writer.add_histogram(name, p, bins='auto')
+            print(str(i) + ")")
+            i += 1
+            try:
+                #self.writer.add_histogram(name, p, bins='auto')
+                pass
+            except:
+                try:
+                    self.writer.add_histogram(name, None, bins='auto')
+                except:
+                    pass
+                print("-->> param dim too large with " + str(name))
+        print("done validate epoch")
         return self.valid_metrics.result()
 
     def _progress(self, batch_idx):

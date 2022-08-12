@@ -9,7 +9,9 @@ from .Classifier import Classifier
 from torch.autograd import Variable
 import torchvision.transforms as T
 import numpy as np
+import librosa
 
+import matplotlib.pyplot as plt
 
 def warpgrid(bs, HO, WO, warp=True):
     # meshgrid
@@ -57,22 +59,35 @@ class AudioVisualSeparator(nn.Module):
     def device(self, dev):
         self.device = dev
         
+    def plot_spectrogram(self, spec, id, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
+        fig, axs = plt.subplots(1, 1)
+        axs.set_title(title or 'Spectrogram (db)')
+        axs.set_ylabel(ylabel)
+        axs.set_xlabel('frame')
+        im = axs.imshow(librosa.power_to_db(spec), origin='lower', aspect=aspect)
+        if xmax:
+            axs.set_xlim((0, xmax))
+        fig.colorbar(im, ax=axs)
+        plt.show(block=False)
+        path = r'/home/dsi/ravivme/run-model/Servers-DeepProject/DeepProject-Servers/specs/spec_' + id
+        plt.savefig(path + '.png')
+        
     '''X is the input and will in a format of a dictionary with several entries'''
     def forward(self, X):
-        vid_ids = X['ids']           # + [X['obj2']['id']]
+        vid_ids = X['ids'].view(-1)           # + [X['obj2']['id']]
         bs = X["detections"].shape[0]
         audio_mags = X['audio_mags'].view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
         mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256) + 1e-10
         detected_objects = X['detections']
-        classes = X['classes']
+        classes = X['classes'].view(-1) - 1
 
-        for idx, _ in enumerate(classes):
-            classes[idx] -= 1
+        # for idx, _ in enumerate(classes):
+        #     classes[idx] -= 1
             
-        for idx1, obj in enumerate(classes):
-            for idx2, _ in enumerate(obj):
-                if classes[idx1][idx2] == -2:
-                    classes[idx1][idx2] = 0
+        # for idx1, obj in enumerate(classes):
+        #     for idx2, _ in enumerate(obj):
+        #         if classes[idx1][idx2] == -2:
+        #             classes[idx1][idx2] = 15
 
 
           # warp the spectrogram
@@ -93,7 +108,15 @@ class AudioVisualSeparator(nn.Module):
         ground_mask = audio_mags / mixed_audio     #list of masks per video
         #should we clamp ? -
         ground_mask = ground_mask.clamp(0, 5)
-        ground_mask = F.grid_sample(ground_mask, grid_warp)
+        #ground_mask = F.grid_sample(ground_mask, grid_warp)
+
+        # self.plot_spectrogram(audio_mags[0][0], "audio_" + str(vid_ids[0]))
+        # self.plot_spectrogram(audio_mags[2][0], "audio_" + str(vid_ids[2]))
+        # self.plot_spectrogram(ground_mask[0][0] + ground_mask[2][0], "mask_" + str(vid_ids[0]))
+        # self.plot_spectrogram(mixed_audio[0][0], "mix_" + str(vid_ids[0]))
+        
+        #for i, mask in enumerate(ground_mask):
+        #    self.plot_spectrogram(mask[0], str(vid_ids[i]))
 
         # Resnet18 for the visual part of the detected object
         #print(detected_objects.shape)
@@ -111,7 +134,7 @@ class AudioVisualSeparator(nn.Module):
         weights = torch.log1p(mixed_audio)
         weights = torch.clamp(weights, 1e-3, 10)
 
-        audio_label_preds = self.classifier.get_audio_classification().forward(spectro) * 0
+        audio_label_preds = self.classifier.get_audio_classification().forward(spectro)
         
 
         return {"ground_masks" : ground_mask, "ground_labels" : classes, "predicted_audio_labels" : audio_label_preds,

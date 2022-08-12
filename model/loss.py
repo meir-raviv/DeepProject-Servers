@@ -2,7 +2,7 @@ import torch.nn.functional as F
 import torch
 
 def l1_loss(output, target, weight=1):
-    return torch.mean(torch.abs(output - target)) #weight * 
+    return torch.mean(torch.abs(output[:, 0] - (target[:, 0] + target[:, 1]))) #weight * 
 
 def ce_loss(output, target):
     return F.cross_entropy(output, target)

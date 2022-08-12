@@ -126,11 +126,21 @@ pad with 0 or -1 and have 4 objects every time
 define __len__ in dataset?
 p
 '''
-
+def plot_spectrogram(spec, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
+  fig, axs = plt.subplots(1, 1)
+  axs.set_title(title or 'Spectrogram (db)')
+  axs.set_ylabel(ylabel)
+  axs.set_xlabel('frame')
+  im = axs.imshow(librosa.power_to_db(spec), origin='lower', aspect=aspect)
+  if xmax:
+    axs.set_xlim((0, xmax))
+  fig.colorbar(im, ax=axs)
+  plt.show(block=False)
+  plt.savefig('./spec.png')
 
 ds = MusicDataset()
 pick = ds.__getitem__(0)
-index = 200
+index = 2000
 
 pickle_idx = str(index).zfill(6) + '.pickle'
 file_path = os.path.join(ds.dir_path, pickle_idx)
@@ -142,10 +152,22 @@ except OSError:
     pick = None
     print("Error")
 
-im = pick['obj2']['images'][0][1] / 255
-print(im)
-plt.imshow(im)
-plt.show()
+#im = pick['obj2']['images'][0][1] / 255
+#print(im)
+#plt.imshow(im)
+#plt.show()
 
-au = pick['obj2']['wave']
-playsound(au[0])
+#au = pick['obj2']['audio']['wave']
+au = pick['obj2']['audio']['stft'][0][0]
+spec = au
+plot_spectrogram(au)
+fig, axs = plt.subplots(1, 1)
+axs.set_title('Spectrogram (db)')
+axs.set_ylabel("freq_bin")
+axs.set_xlabel('frame')
+im = axs.imshow(librosa.power_to_db(spec), origin='lower', aspect='auto')
+
+fig.colorbar(im, ax=axs)
+plt.show(block=False)
+plt.savefig('./spec.png')
+#playsound(au[0])

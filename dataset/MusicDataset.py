@@ -77,11 +77,11 @@ class MusicDataset(Dataset):
 
         classes = [int(c[0]) for c in X['obj1']['images'][:]]
         if len(classes) == 1:
-            classes += [-1]
+            classes += [16]
 
         classes += [int(c[0]) for c in X['obj2']['images'][:]]
         if len(classes) == 3:
-            classes += [-1]
+            classes += [16]
 
         pick_dict['classes'] = np.vstack(classes)
 
