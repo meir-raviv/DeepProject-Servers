@@ -54,10 +54,13 @@ class AudioVisualSeparator(nn.Module):
         super(AudioVisualSeparator, self).__init__()
         self.visual = Visual().create_visual_vector()
         self.uNet7Layer = UNet7Layer(input=1)
-        self.classifier = Classifier()  #for weak labels
+        self.classifier = Classifier().get_audio_classification()  #for weak labels
     
     def device(self, dev):
         self.device = dev
+        self.visual.to(self.device)
+        self.uNet7Layer.to(self.device)
+        self.classifier.to(self.device)
         
     def plot_spectrogram(self, spec, id, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
         fig, axs = plt.subplots(1, 1)
@@ -134,7 +137,7 @@ class AudioVisualSeparator(nn.Module):
         weights = torch.log1p(mixed_audio)
         weights = torch.clamp(weights, 1e-3, 10)
 
-        audio_label_preds = self.classifier.get_audio_classification().forward(spectro)
+        audio_label_preds = self.classifier.forward(spectro)
         
 
         return {"ground_masks" : ground_mask, "ground_labels" : classes, "predicted_audio_labels" : audio_label_preds,

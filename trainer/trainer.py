@@ -47,14 +47,20 @@ class Trainer(BaseTrainer):
         self.train_metrics.reset()
         for batch_idx, pick in enumerate(self.data_loader):
             
+            self.model.to(self.model.device)
+            # num_of_param = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+            # print("Number of parameters that require grad in the model is: {num}".format(num=num_of_param))
+            
             #data, target = pick.to(self.device), None#, target.to(self.device)
             #pick['mixed_audio'] = pick['mixed_audio'].view(4, 15, 512, 256)
-            pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
+            #pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
             bs = pick["detections"].shape[0] * pick["detections"].shape[1]
             pick['detections'] = pick['detections'].view(bs, 3, 224, 224)
-            pick['detections'] = pick['detections'].to(self.device)
-            pick['classes'] = pick['classes'].to(self.device)
+            #pick['detections'] = pick['detections'].to(self.device)
+            #pick['classes'] = pick['classes'].to(self.device)
             
+            for key, value in pick.items():
+                pick[key] = pick[key].to(self.model.device)
 
             self.model.zero_grad()
             output = self.model(pick)
@@ -161,11 +167,13 @@ class Trainer(BaseTrainer):
             vec = torch.ones(predicted_masks.shape)
 
             for idx in range(len(labels)-1, -1, -2):                
-                vec[idx] = torch.ones(vec[idx].shape)
+                vec[idx] = torch.zeros(vec[idx].shape)
                 #if labels[idx] != 15:
                     #predicted_masks[idx-1] += predicted_masks[idx]
             
-            coseparation_loss = self.criterion((predicted_masks * vec).view(16, 2, 1, 256, 256), (ground_masks * vec).view(16, 2, 1, 256, 256))#, weights)
+            vec = vec.to(self.model.device)
+
+            coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256))#, weights)
             
             # for idx in range(len(labels)-1, -1, -2):
                 
@@ -228,12 +236,18 @@ class Trainer(BaseTrainer):
         self.valid_metrics.reset()
         with torch.no_grad():
             for batch_idx, pick in enumerate(self.valid_data_loader):
-                pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
+                
+                self.model.to(self.model.device)
+            
+                #pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
                 bs = pick["detections"].shape[0] * pick["detections"].shape[1]
                 pick['detections'] = pick['detections'].view(bs, 3, 224, 224)
-                pick['detections'] = pick['detections'].to(self.device)
-                pick['classes'] = pick['classes'].to(self.device)
-                
+                #pick['detections'] = pick['detections'].to(self.device)
+                #pick['classes'] = pick['classes'].to(self.device)
+
+                for key, value in pick.items():
+                    pick[key] = pick[key].to(self.model.device)
+
                 output = self.model(pick)
 
                 ground_masks = output["ground_masks"]#.numpy()
@@ -274,16 +288,34 @@ class Trainer(BaseTrainer):
 
                 #coseparation_loss = self.criterion(predicted_masks, ground_masks)
                 
-                coseparation_loss = 0
-                for idx in range(len(labels)-1, -1, -2):
-                    if labels[idx] == 15:
-                        #predicted_masks[idx] = predicted_masks[idx] * 0
-                        coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
-                    else:
-                        coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
-                #coseparation_loss = torch.FloatTensor(coseparation_loss)
-                coseparation_loss = coseparation_loss / 32
+                # coseparation_loss = 0
+                # for idx in range(len(labels)-1, -1, -2):
+                #     if labels[idx] == 15:
+                #         #predicted_masks[idx] = predicted_masks[idx] * 0
+                #         coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
+                #     else:
+                #         coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
+                # #coseparation_loss = torch.FloatTensor(coseparation_loss)
+                # coseparation_loss = coseparation_loss / 32
                 
+                # vec = torch.ones(predicted_masks.shape)
+
+                # for idx in range(len(labels)-1, -1, -2):                
+                #     vec[idx] = torch.zeros(vec[idx].shape)
+                    
+                vec = torch.ones(predicted_masks.shape)
+
+                for idx in range(len(labels)-1, -1, -2):                
+                    vec[idx] = torch.zeros(vec[idx].shape)
+
+                vec = vec.to(self.model.device)
+
+                #vec = vec.view(int(bs / 2), 2)    
+
+                coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256))
+            
+                #coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256))#, weights)
+            
                 lamda = 0.01
                 #consistency_loss = loss.ce_loss(pred_labels, Variable(labels, requires_grad=False)) * lamda
                 sum_loss = coseparation_loss    # + consistency_loss

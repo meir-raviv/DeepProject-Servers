@@ -1,7 +1,7 @@
 
 {
     "name": "AudioVisual_Net",
-    "n_gpu": 0,
+    "n_gpu": 1,
 
     "arch": {
         "type": "AudioVisualSeparator",
