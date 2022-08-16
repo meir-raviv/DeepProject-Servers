@@ -2,6 +2,7 @@ import torch.nn.functional as F
 import torch
 
 def l1_loss(output, target, vec=None, weight=1):
+    #return (torch.abs(target - output))
     return torch.mean(torch.abs(target[:, 0] - (output[:, 0] + output[:, 1]))) #weight * 
 
 def ce_loss(output, target):
