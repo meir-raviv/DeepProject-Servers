@@ -177,7 +177,7 @@ def pick_rand_clip(vid_class, vid_id, base_path):
         chunk_path = os.path.join(path, dir_chunk)
     return chunk_path, parent
 
-def iterate_files(dir, count, log, parent, source, target=r'/dsi/gannot-lab/datasets/Music/Batches'):
+def iterate_files(dir, count, log, parent, source, target=r'/dsi/gannot-lab/datasets/Music/Unnormalized_Data'):
 
     for file in os.listdir(dir):
         file_path = os.path.join(dir, file)
@@ -226,7 +226,7 @@ def iterate_files(dir, count, log, parent, source, target=r'/dsi/gannot-lab/data
 
                 min_a = min(mix_stft)
                 max_a = max(mix_stft)
-                mix_stft = 2 * (mix_stft - min_a) / (max_a - min_a) - 1
+                #mix_stft = 2 * (mix_stft - min_a) / (max_a - min_a) - 1
 
                 sample = sample_wav(mix_stft)
                 mix_mags, mix_phases = create_spectrogram(sample)
@@ -260,17 +260,18 @@ if __name__ == "__main__":
     #print("\nTime Stamp : " + str(dt.date(dt.now())) + " , " + str(dt.now().strftime("%H:%M:%S")) + "\n")
 
     try:
-        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/GeneratorErrorsLog.txt", "x")
+        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/UnnormalizedGeneratorErrorsLog.txt", "x")
     except:
-        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/GeneratorErrorsLog.txt", "w")
+        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/GeneratorUnnormalizedErrorsLog.txt", "w")
 
     log.write("\nTime Stamp : " + str(dt.date(dt.now())) + " , " + str(dt.now().strftime("%H:%M:%S")) + "\n")
     log.write("\nGenerator Errors : \n")
 
     # argument 1 is the root directory of the data
-    root_dir = sys.argv[1]
+    #root_dir = sys.argv[1]
     count = [0, 0]
-    source = root_dir           #'/dsi/gannot-lab/datasets/Music/Try/'
+    root_dir = r'/dsi/gannot-lab/datasets/Music/MUSIC_arme/Data/'#root_dir           #'/dsi/gannot-lab/datasets/Music/Try/'
+    source = root_dir
     iterate_files(root_dir, count, log, '', source)
     print("\n---------------SECOND ROUND------------------\n")
     log.write("\n---------------SECOND ROUND------------------\n")

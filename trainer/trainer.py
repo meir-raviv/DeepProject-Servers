@@ -166,15 +166,19 @@ class Trainer(BaseTrainer):
             #coseparation_loss = 0
             vec = torch.ones(predicted_masks.shape)
 
+            v = torch.ones((32, 1, 5, 5))
+
             for idx in range(len(labels)-1, -1, -2):  
                  if labels[idx] == 15:
                     vec[idx] = torch.zeros(vec[idx].shape)
+                    #v[idx] = torch.zeros(v[idx].shape)
                 #if labels[idx] != 15:
                     #predicted_masks[idx-1] += predicted_masks[idx]
-            
-            vec = vec.to(self.model.device)
+            #print(v.view(16, 2, 1, 5, 5))
 
-            coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256))#, weights)
+            vec = vec.to(self.model.device)
+            weights = weights.view((int(bs / 2), 2, 1, 256, 256))
+            coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
             
             '''
             coseparation_loss = 0
@@ -328,8 +332,8 @@ class Trainer(BaseTrainer):
                         #predicted_masks[idx-1] += predicted_masks[idx]
                 
                 vec = vec.to(self.model.device)
-
-                coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256))#, weights)
+                weights = weights.view((int(bs / 2), 2, 1, 256, 256))
+                coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256), weights)
                 
                 '''
                 coseparation_loss = 0

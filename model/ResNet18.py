@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class ResNet18(nn.Module):
 
-    def __init__(self, original_resnet, pool_type, input_channel, with_fc=False, fc_in=512, fc_out=512):
+    def __init__(self, original_resnet, pool_type, input_channel=3, with_fc=False, fc_in=512, fc_out=512):
         super(ResNet18, self).__init__()
         
         # self.RN18 = torchvision.models.ResNet18(pretrained=True)

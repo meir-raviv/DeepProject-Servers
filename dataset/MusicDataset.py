@@ -7,6 +7,7 @@ import torchvision.transforms as T
 import pickle
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
 
 '''
@@ -37,7 +38,7 @@ class MusicDataset(Dataset):
             self.log.write(" -->> " + self.dir_path + " is not a valid path\n")
 
     def __len__(self):
-        return self.size
+        return 16   #self.size
 
     '''
     ->  each object has 2 dictionaries, each for a single clip with the following structure:
@@ -91,6 +92,14 @@ class MusicDataset(Dataset):
                        np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]  #array includes both videos data - 2 values
         pick_dict['audio_mags'] = np.vstack(self_audios)
 
+        self_phases = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][1]), axis=0),
+                            np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][1]), axis=0),
+                            np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][1]), axis=0),
+                            np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][1]), axis=0)]  #array includes both videos data - 2 values
+        pick_dict['audio_phases'] = np.vstack(self_phases)
+
+
+
         detected_objects = [self.transform(c[1]).unsqueeze(0) for c in X['obj1']['images'][:]]
         if len(detected_objects) == 1:
             detected_objects += [0 * detected_objects[0]]
@@ -101,16 +110,37 @@ class MusicDataset(Dataset):
 
         pick_dict['detections'] = np.vstack(detected_objects)
 
+        # for im in pick_dict['detections']:
+        #     #im = im.reshape((224, 224, 3))
+        #     im = im[1] / 255
+        #     print(im)
+        #     plt.imshow(im)
+        #     plt.show()
+        #     plt.savefig('./detection.png')
+        #     break
+
         mixed_audio = []
         mix = X['mix'][0]
         mix = np.expand_dims(mix, axis=0)
         num_objs = 4
         for n in range(num_objs):
             mixed_audio.append(torch.FloatTensor(mix).unsqueeze(0))
+        
+        pick_dict['mixed_audio'] = np.vstack(mixed_audio)
+
+        mixed_phases = []
+        mix_p = X['mix'][1]
+        mix_p = np.expand_dims(mix_p, axis=0)
+        num_objs = 4
+        for n in range(num_objs):
+            mixed_phases.append(torch.FloatTensor(mix_p).unsqueeze(0))
+        
         #mixed_audio = np.vstack(mixed_audio)
         #mixed_audio = mixed_audio + 1e-10  # in order to make sure we don't divide by 0
         #mixed_audio = mixed_audio
-        pick_dict['mixed_audio'] = np.vstack(mixed_audio)
+        pick_dict['mixed_phases'] = np.vstack(mixed_phases)
+
+        pick_dict['rate'] = X['obj1']['audio']['wave'][1]
 
         return pick_dict
 

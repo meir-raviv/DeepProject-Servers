@@ -13,6 +13,16 @@ import librosa
 
 import matplotlib.pyplot as plt
 
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
+    elif classname.find('Linear') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+
 def warpgrid(bs, HO, WO, warp=True):
     # meshgrid
     x = np.linspace(-1, 1, WO)
@@ -53,7 +63,7 @@ class AudioVisualSeparator(nn.Module):
     def __init__(self):
         super(AudioVisualSeparator, self).__init__()
         self.visual = Visual().create_visual_vector()
-        self.uNet7Layer = UNet7Layer(input=1)
+        self.uNet7Layer = UNet7Layer(input=1).apply(weights_init)
         self.classifier = Classifier().get_audio_classification()  #for weak labels
     
     def device(self, dev):
@@ -82,6 +92,18 @@ class AudioVisualSeparator(nn.Module):
         audio_mags = X['audio_mags'].view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
         mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256) + 1e-10
         detected_objects = X['detections']
+
+        # for im in X['detections']:
+        #     #im = im.reshape((224, 224, 3))
+        #     im = im[1] / 255
+        #     im = im.detach().cpu().numpy()
+        #     print(im)
+        #     plt.imshow(im)
+        #     plt.show()
+        #     plt.savefig('./detection.png')
+        #     break
+
+
         classes = X['classes'].view(-1) - 1
 
         # for idx, _ in enumerate(classes):
@@ -99,6 +121,7 @@ class AudioVisualSeparator(nn.Module):
         
         grid_warp = torch.from_numpy(warpgrid(B, 256, T, warp=True)).to(self.device)
         #mixed_audio_simple = mixed_audio[:, 0]
+        original_mixed_audio = X['mixed_audio']
         mixed_audio = F.grid_sample(mixed_audio, grid_warp)
         audio_mags = F.grid_sample(audio_mags, grid_warp)
 
@@ -110,7 +133,7 @@ class AudioVisualSeparator(nn.Module):
         # mask for the object
         ground_mask = audio_mags / mixed_audio     #list of masks per video
         #should we clamp ? -
-        ground_mask = ground_mask.clamp(0, 5)
+        ground_mask = ground_mask.clamp(0., 5.)
         #ground_mask = F.grid_sample(ground_mask, grid_warp)
 
         # self.plot_spectrogram(audio_mags[0][0], "audio_" + str(vid_ids[0]))
@@ -139,9 +162,20 @@ class AudioVisualSeparator(nn.Module):
 
         audio_label_preds = self.classifier.forward(spectro)
         
+        # for im in detected_objects:
+        #     #im = im.reshape((224, 224, 3))
+        #     im = im[1] / 255
+        #     im = im.detach().cpu().numpy()
+        #     print(im)
+        #     plt.imshow(im)
+        #     plt.show()
+        #     plt.savefig('./detection.png')
+        #     break
+
 
         return {"ground_masks" : ground_mask, "ground_labels" : classes, "predicted_audio_labels" : audio_label_preds,
                 "predicted_masks" : mask_preds, "predicted_spectrograms" : masks_applied,
-                "visual_objects" : visual_vecs, "mixed_audios" : mixed_audio, "videos" : vid_ids, "weights" : weights}
+                "visual_objects" : visual_vecs, "mixed_audios" : mixed_audio, "videos" : vid_ids, "weights" : weights,
+                "audio_phases" : X['audio_phases'], "original_mixed_audio" : original_mixed_audio, "detections" : detected_objects}
 
 '''https://github.com/rhgao/co-separation/blob/bd4f4fd51f2d6090e1566d20d4e0d0c8d83dd842/models/audioVisual_model.py'''
