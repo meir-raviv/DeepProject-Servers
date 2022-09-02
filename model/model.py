@@ -165,7 +165,7 @@ class AudioVisualSeparator(nn.Module):
         # for im in detected_objects:
         #     #im = im.reshape((224, 224, 3))
         #     im = im[1] / 255
-        #     im = im.detach().cpu().numpy()
+        #     im = im.T.detach().cpu().numpy()
         #     print(im)
         #     plt.imshow(im)
         #     plt.show()

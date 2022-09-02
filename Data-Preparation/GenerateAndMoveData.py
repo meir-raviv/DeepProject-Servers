@@ -16,6 +16,7 @@ import soundfile as sf
 import os
 import pickle
 from datetime import datetime as dt
+import torchvision.transforms as T
 
 def sample_wav(wav, size=65535):
     # we expand the audio if its too short (with tile)
@@ -118,12 +119,19 @@ def pickItems(path, log, parent):
     crop_path = os.path.join(path, crop_name)
     for bbox in os.listdir(crop_path):
         im = Image.open(os.path.join(crop_path, bbox)).resize((224, 224))
+        print(crop_path)
+        
         pix = np.asarray(im).astype('float32')
+        #for pi in pix:
+        #    print(pi)
+        tim = T.ToTensor()(pix)
+        print(tim)                    
         '''
         min_p = pix.min()
         max_p = pix.max()
         pix = (pix - min_p) / (max_p - min_p)
         '''
+        #print(tim)
         obj_dict['images'] += [(bbox.split('.')[0], pix)]
 
     vid_id = crop_name.split('_')[-1]
@@ -177,7 +185,7 @@ def pick_rand_clip(vid_class, vid_id, base_path):
         chunk_path = os.path.join(path, dir_chunk)
     return chunk_path, parent
 
-def iterate_files(dir, count, log, parent, source, target=r'/dsi/gannot-lab/datasets/Music/Unnormalized_Data'):
+def iterate_files(dir, count, log, parent, source, target=r'/dsi/gannot-lab/datasets/Music/Trial_Data'):
 
     for file in os.listdir(dir):
         file_path = os.path.join(dir, file)
@@ -260,12 +268,12 @@ if __name__ == "__main__":
     #print("\nTime Stamp : " + str(dt.date(dt.now())) + " , " + str(dt.now().strftime("%H:%M:%S")) + "\n")
 
     try:
-        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/UnnormalizedGeneratorErrorsLog.txt", "x")
+        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/TrialGeneratorErrorsLog.txt", "x")
     except:
-        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/GeneratorUnnormalizedErrorsLog.txt", "w")
+        log = open(r"/dsi/gannot-lab/datasets/Music/Logs/TrialGeneratorUnnormalizedErrorsLog.txt", "w")
 
     log.write("\nTime Stamp : " + str(dt.date(dt.now())) + " , " + str(dt.now().strftime("%H:%M:%S")) + "\n")
-    log.write("\nGenerator Errors : \n")
+    log.write("\nTrial Generator Errors : \n")
 
     # argument 1 is the root directory of the data
     #root_dir = sys.argv[1]

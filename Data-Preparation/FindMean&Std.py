@@ -22,10 +22,17 @@ def iterate_files(dir, count, pic_tensor):
                     for pic in os.listdir(pics_path):
                         pic_path = os.path.join(pics_path, pic)
                         if pic.endswith(('.jpg')):
+                            if count[1] > 5:
+                                return
                             count[1] += 1
-                            im = Image.open(pic_path)
+                            im = Image.open(pic_path).resize((224, 224))
+                            #print(np.as_array(im))
                             tim = T.ToTensor()(im)
+                            #print(tim)
+                            
+                            #print(count)
                             pic_tensor += tim
+                            
 
 
         elif os.path.isdir(file_path):
@@ -34,6 +41,7 @@ def iterate_files(dir, count, pic_tensor):
 
 if __name__ == "__main__":
     # argument 1 is the root directory of the data
+
 
     path = r"/dsi/gannot-lab/datasets/Music/MUSIC_arme/Data/Duet/11_15/000000/chunk_0/cropped_000000/8.jpg"
     im1 = Image.open(path)
@@ -45,8 +53,9 @@ if __name__ == "__main__":
     pic_tensor -= tim1
     iterate_files(root_dir, count, pic_tensor)
     a = pic_tensor / count[1]
-    m = a.mean((1, 2))
-    s = a.std((1, 2))
+    print(a.shape)
+    m = a.mean([1, 2])
+    s = a.std([1, 2])
     print(m)
     print(s)
 

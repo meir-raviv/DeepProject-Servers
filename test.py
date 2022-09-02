@@ -103,15 +103,37 @@ def main(config):
             weights = weights.view((int(bs / 2), 2, 1, 256, 256))
             loss = loss_fn((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
             
-            i = 6
+            i = 4
             vid = output['videos']
             im = output['detections'][i].T.detach().cpu().numpy()
             print(output['detections'].shape)
             print(";;;;;;;;;;;;;;;")
 #            im = pick['obj2']['images'][0][1] / 255
-            plt.imshow(im / (2550))
+            print(im)
+
+            plt.imshow(im)# / (2550))
             plt.show()
-            plt.savefig('./detect.png')
+            plt.savefig('./detect1.png')
+
+            plt.figure()
+            im = output['detections'][i+1].T.detach().cpu().numpy()
+            plt.imshow(im)# / (2550))
+            plt.show()
+            plt.savefig('./detect2.png')
+
+            plt.figure()
+            im = output['detections'][i+2].T.detach().cpu().numpy()
+            plt.imshow(im)# / (2550))
+            plt.show()
+            plt.savefig('./detect3.png')
+
+            plt.figure()
+            im = output['detections'][i+3].T.detach().cpu().numpy()
+            plt.imshow(im)# / (2550))
+            plt.show()
+            plt.savefig('./detect4.png')
+
+
 
             print("vid id : " + str(vid))
             print(output['audio_phases'].shape)
@@ -160,6 +182,9 @@ def main(config):
             print(pred_masks_linear.shape)
             print("<<<**************>>>")
 
+
+
+
             spec = pred_mag.astype(np.complex) * np.exp(1j*phase_mix)
             
             #spec = pred_mag.detach().cpu().numpy().astype(np.complex) * np.exp(1j*phase_mix)
@@ -169,6 +194,49 @@ def main(config):
 
             path = f"/dsi/gannot-lab/datasets/Music/saved_example.wav"
             soundfile.write(path, audio.T, 11025, format='wav')
+            
+
+
+
+
+            spec = pred_mag1.astype(np.complex) * np.exp(1j*phase_mix)
+            
+            #spec = pred_mag.detach().cpu().numpy().astype(np.complex) * np.exp(1j*phase_mix)
+            
+            audio = librosa.istft(spec, hop_length=256, center=True, length=65535)#.tolist()#, rate)
+            audio = np.clip(audio, -1., 1.)        
+
+            path = f"/dsi/gannot-lab/datasets/Music/saved_example1.wav"
+            soundfile.write(path, audio.T, 11025, format='wav')
+
+
+            
+
+
+            spec = pred_mag2.astype(np.complex) * np.exp(1j*phase_mix)
+            
+            #spec = pred_mag.detach().cpu().numpy().astype(np.complex) * np.exp(1j*phase_mix)
+            
+            audio = librosa.istft(spec, hop_length=256, center=True, length=65535)#.tolist()#, rate)
+            audio = np.clip(audio, -1., 1.)        
+
+            path = f"/dsi/gannot-lab/datasets/Music/saved_example2.wav"
+            soundfile.write(path, audio.T, 11025, format='wav')
+
+            
+
+
+            spec = pred_mag3.astype(np.complex) * np.exp(1j*phase_mix)
+            
+            #spec = pred_mag.detach().cpu().numpy().astype(np.complex) * np.exp(1j*phase_mix)
+            
+            audio = librosa.istft(spec, hop_length=256, center=True, length=65535)#.tolist()#, rate)
+            audio = np.clip(audio, -1., 1.)        
+
+            path = f"/dsi/gannot-lab/datasets/Music/saved_example3.wav"
+            soundfile.write(path, audio.T, 11025, format='wav')
+
+
 #            IPython.display.Audio(path)
 
             '''

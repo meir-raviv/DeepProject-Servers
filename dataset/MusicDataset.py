@@ -38,7 +38,7 @@ class MusicDataset(Dataset):
             self.log.write(" -->> " + self.dir_path + " is not a valid path\n")
 
     def __len__(self):
-        return 16   #self.size
+        return self.size
 
     '''
     ->  each object has 2 dictionaries, each for a single clip with the following structure:
@@ -100,13 +100,21 @@ class MusicDataset(Dataset):
 
 
 
-        detected_objects = [self.transform(c[1]).unsqueeze(0) for c in X['obj1']['images'][:]]
+        detected_objects = [self.transform(c[1] / 255).unsqueeze(0) for c in X['obj1']['images'][:]]
         if len(detected_objects) == 1:
             detected_objects += [0 * detected_objects[0]]
 
-        detected_objects += [self.transform(c[1]).unsqueeze(0) for c in X['obj2']['images'][:]]
+        detected_objects += [self.transform(c[1] / 255).unsqueeze(0) for c in X['obj2']['images'][:]]
         if len(detected_objects) == 3:
             detected_objects += [0 * detected_objects[2]]    #all detected objects in both video's'
+
+     #detected_objects /= 255
+     
+        # plt.figure()
+        # im = detected_objects[0][0].T#.detach().cpu().numpy()
+        # plt.imshow(im)# / (2550))
+        # plt.show()
+        # plt.savefig('./detect.png')
 
         pick_dict['detections'] = np.vstack(detected_objects)
 
