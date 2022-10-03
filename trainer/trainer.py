@@ -6,7 +6,22 @@ from torchvision.utils import make_grid
 from base.base_trainer import BaseTrainer
 from utils import inf_loop, MetricTracker
 from model import loss
+import matplotlib.pyplot as plt
+import librosa
 #import torchvision.transforms as T
+
+def plot_spectrogram(pick, ind, p, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
+  spec = pick['obj2']['audio']['stft'][p][0][0]
+  fig, axs = plt.subplots(1, 1)
+  axs.set_title(title or 'Spectrogram (db)')
+  axs.set_ylabel(ylabel)
+  axs.set_xlabel('frame')
+  im = axs.imshow(librosa.power_to_db(spec), origin='lower', aspect=aspect)
+  if xmax:
+    axs.set_xlim((0, xmax))
+  fig.colorbar(im, ax=axs)
+  plt.show(block=False)
+  plt.savefig('./spec_new/spec'+str(ind)+'.png')
 
 class Trainer(BaseTrainer):
     """
@@ -36,7 +51,7 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
-    def _train_epoch(self, epoch):
+    def _train_epoch(self, epoch, lost_loss, t, ind):
         print("start train epoch")
         """
         Training logic for an epoch
@@ -45,6 +60,8 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
+        
+
         for batch_idx, pick in enumerate(self.data_loader):
             
             self.model.to(self.model.device)
@@ -55,12 +72,22 @@ class Trainer(BaseTrainer):
             #pick['mixed_audio'] = pick['mixed_audio'].view(4, 15, 512, 256)
             #pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
             bs = pick["detections"].shape[0] * pick["detections"].shape[1]
+            
+            print("detections before")
+            print(pick['detections'].shape)
             pick['detections'] = pick['detections'].view(bs, 3, 224, 224)
+            print(pick['detections'].shape)
+            print("detections before")
+
             #pick['detections'] = pick['detections'].to(self.device)
             #pick['classes'] = pick['classes'].to(self.device)
             
             for key, value in pick.items():
                 pick[key] = pick[key].to(self.model.device)
+
+            for p in range(4):
+                #plot_spectrogram(pick, ind[0], p)
+                pass
 
             self.model.zero_grad()
             output = self.model(pick)
@@ -177,8 +204,20 @@ class Trainer(BaseTrainer):
             #print(v.view(16, 2, 1, 5, 5))
 
             vec = vec.to(self.model.device)
+            
+            print("weights before")
+            print(weights.shape)
             weights = weights.view((int(bs / 2), 2, 1, 256, 256))
+            print(weights.shape)
+            print("weights after")
+
+            print("pred + masks before")
+            print((predicted_masks * vec).shape)
+            print(ground_masks.shape)
             coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
+            print("pred + masks after")
+            print((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256).shape)
+            print(ground_masks.view(int(bs / 2), 2, 1, 256, 256).shape)
             
             '''
             coseparation_loss = 0
@@ -206,6 +245,11 @@ class Trainer(BaseTrainer):
             #consistency_loss.backward(retain_graph=True)
             coseparation_loss.backward()
 
+
+            # lost_loss += [coseparation_loss.cpu().detach().numpy()]
+            # t += [ind[0]]
+            # ind[0] += 1
+
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
@@ -222,25 +266,53 @@ class Trainer(BaseTrainer):
                 self.writer.add_image('input', make_grid(pick['detections'].cpu(), nrow=8, normalize=True))
             
 
+            # fig, axs = plt.subplots(1, 1)
+            # axs.set_title("Loss - epoch: " + str(epoch))
+            # axs.set_ylabel('loss')
+            # axs.set_xlabel('times')
+            
+            # #cop = np.asarray(lost_loss)
+            # plt.plot(t, lost_loss)
+            # #plt.label("epoch: " + str(epoch))
+            # plt.show()
+            # plt.savefig('loss.png')
+            # np.save('loss', lost_loss)
+            
             if batch_idx == self.len_epoch:
                 break
         log = self.train_metrics.result()
 
         if self.do_validation:
-            val_log = self._valid_epoch(epoch)
+            val_log = self._valid_epoch(epoch, lost_loss, t, ind)
             log.update(**{'val_'+k : v for k, v in val_log.items()})
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
         print("done train epoch")
+
+        # fig, axs = plt.subplots(1, 1)
+        # axs.set_title("Loss - epoch: " + str(epoch))
+        # axs.set_ylabel('loss')
+        # axs.set_xlabel('times')
+        
+        # #cop = np.asarray(lost_loss)
+        # plt.plot(t, lost_loss)
+        # #plt.label("epoch: " + str(epoch))
+        # plt.show()
+        # plt.savefig('loss.png')
+        # np.save('loss', lost_loss)
+
         return log
 
-    def _valid_epoch(self, epoch):
+    def _valid_epoch(self, epoch, lost_loss, t, ind):
         """
         Validate after training an epoch
         :param epoch: Integer, current training epoch.
         :return: A log that contains information about validation
         """
+        
+        lost_loss1 = []
+
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
@@ -335,6 +407,10 @@ class Trainer(BaseTrainer):
                 weights = weights.view((int(bs / 2), 2, 1, 256, 256))
                 coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256), weights)
                 
+                
+                lost_loss1 += [coseparation_loss.cpu().detach().numpy()]
+
+
                 '''
                 coseparation_loss = 0
 
@@ -373,6 +449,23 @@ class Trainer(BaseTrainer):
                 except:
                     pass
                 print("-->> param dim too large with " + str(name))
+
+        lost_loss += [np.mean(lost_loss1)]
+        t += [ind[0]]
+        ind[0] += 1
+        
+        fig, axs = plt.subplots(1, 1)
+        axs.set_title("Loss - epoch: " + str(epoch))
+        axs.set_ylabel('loss')
+        axs.set_xlabel('epochs')
+        
+        #cop = np.asarray(lost_loss)
+        plt.plot(t, lost_loss)
+        #plt.label("epoch: " + str(epoch))
+        plt.show()
+        plt.savefig('loss.png')
+        np.save('loss', lost_loss)
+
         print("done validate epoch")
         return self.valid_metrics.result()
 

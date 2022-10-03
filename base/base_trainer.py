@@ -58,8 +58,13 @@ class BaseTrainer:
         Full training logic
         """
         not_improved_count = 0
+        
+        lost_loss = []
+        t = []
+        ind = [1]
+        
         for epoch in range(self.start_epoch, self.epochs + 1):
-            result = self._train_epoch(epoch)
+            result = self._train_epoch(epoch, lost_loss, t, ind)
 
             # save logged informations into log dict
             log = {'epoch': epoch}

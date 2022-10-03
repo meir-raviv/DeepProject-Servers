@@ -1,3 +1,4 @@
+from cmath import log
 import torch.nn as nn
 import torch.nn.functional as F
 from base import BaseModel
@@ -39,6 +40,19 @@ def warpgrid(bs, HO, WO, warp=True):
     grid = grid.astype(np.float32)
     return grid
 
+
+def plot_spectrogram(pick, ind, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
+  spec = pick['obj2']['audio']['stft'][0][0]
+  fig, axs = plt.subplots(1, 1)
+  axs.set_title(title or 'Spectrogram (db)')
+  axs.set_ylabel(ylabel)
+  axs.set_xlabel('frame')
+  im = axs.imshow(librosa.power_to_db(spec), origin='lower', aspect=aspect)
+  if xmax:
+    axs.set_xlim((0, xmax))
+  fig.colorbar(im, ax=axs)
+  plt.show(block=False)
+  plt.savefig('./spec_new/spec'+str(ind)+'.png')
 
 class MnistModel(BaseModel):
     def __init__(self, num_classes=10):
@@ -89,8 +103,19 @@ class AudioVisualSeparator(nn.Module):
     def forward(self, X):
         vid_ids = X['ids'].view(-1)           # + [X['obj2']['id']]
         bs = X["detections"].shape[0]
+        
+        print("audio_mags before")
+        print(X['audio_mags'].shape)
         audio_mags = X['audio_mags'].view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
+        print(audio_mags.shape)
+        print("audio_mags before")
+
+        print("mixed_audio before")
+        print(X['mixed_audio'].shape)
         mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256) + 1e-10
+        print(mixed_audio.shape)
+        print("mixed_audio before")
+
         detected_objects = X['detections']
 
         # for im in X['detections']:
@@ -103,9 +128,9 @@ class AudioVisualSeparator(nn.Module):
         #     plt.savefig('./detection.png')
         #     break
 
-
         classes = X['classes'].view(-1) - 1
-
+        print(classes)
+        
         # for idx, _ in enumerate(classes):
         #     classes[idx] -= 1
             
@@ -126,8 +151,13 @@ class AudioVisualSeparator(nn.Module):
         audio_mags = F.grid_sample(audio_mags, grid_warp)
 
         log_mixed_audio = torch.log(mixed_audio).detach()
-        log_mixed_audio = log_mixed_audio.view(bs, 1, 256, 256)
 
+        print("log_mixed_audio before")
+        print(log_mixed_audio.shape)
+        log_mixed_audio = log_mixed_audio.view(bs, 1, 256, 256)
+        print(log_mixed_audio.shape)
+        print("log_mixed_audio after")
+        
         ''' mixed audio and audio are after STFT '''
         
         # mask for the object

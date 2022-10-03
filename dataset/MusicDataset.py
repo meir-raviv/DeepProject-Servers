@@ -8,6 +8,7 @@ import pickle
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from PIL import Image
 
 
 '''
@@ -72,6 +73,9 @@ class MusicDataset(Dataset):
 
         X = pick
         pick_dict = {}
+        # pick_dict['obj1'] = X['obj1']
+        # pick_dict['obj2'] = X['obj2']
+        # pick_dict['mix'] = X['mix']
 
         ids = [int(X['obj1']['id'])] + [int(X['obj2']['id'])]
         pick_dict['ids'] = np.vstack(ids)
@@ -99,12 +103,12 @@ class MusicDataset(Dataset):
         pick_dict['audio_phases'] = np.vstack(self_phases)
 
 
-
-        detected_objects = [self.transform(c[1] / 255).unsqueeze(0) for c in X['obj1']['images'][:]]
+#Image.fromarray(c[1].astype(np.uint8), 'RGB')
+        detected_objects = [self.transform(c[1][:,:,::-1] / 255).unsqueeze(0) for c in X['obj1']['images'][:]]
         if len(detected_objects) == 1:
             detected_objects += [0 * detected_objects[0]]
 
-        detected_objects += [self.transform(c[1] / 255).unsqueeze(0) for c in X['obj2']['images'][:]]
+        detected_objects += [self.transform(c[1][:,:,::-1] / 255).unsqueeze(0) for c in X['obj2']['images'][:]]
         if len(detected_objects) == 3:
             detected_objects += [0 * detected_objects[2]]    #all detected objects in both video's'
 

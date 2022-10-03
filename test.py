@@ -16,6 +16,7 @@ from scipy.io.wavfile import write
 import numpy as np
 import soundfile
 import torch.nn.functional as F
+from PIL import Image
 
 def warpgrid(bs, HO, WO, warp=True):
     # meshgrid
@@ -78,6 +79,7 @@ def main(config):
             
             model.to(device)
             bs = pick["detections"].shape[0] * pick["detections"].shape[1]
+            
             pick['detections'] = pick['detections'].view(bs, 3, 224, 224)
             
             for key, _ in pick.items():
@@ -109,6 +111,7 @@ def main(config):
             print(output['detections'].shape)
             print(";;;;;;;;;;;;;;;")
 #            im = pick['obj2']['images'][0][1] / 255
+            #im = im[:,:,::-1]
             print(im)
 
             plt.imshow(im)# / (2550))
@@ -117,6 +120,7 @@ def main(config):
 
             plt.figure()
             im = output['detections'][i+1].T.detach().cpu().numpy()
+            Image.fromarray((im * 255).astype(np.uint8), 'RGB').save("./trial.jpg")
             plt.imshow(im)# / (2550))
             plt.show()
             plt.savefig('./detect2.png')

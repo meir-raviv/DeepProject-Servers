@@ -25,11 +25,17 @@ def iterate_files(dir, count, pic_tensor):
                             if count[1] > 5:
                                 return
                             count[1] += 1
+                            print("Image size before resize")
+                            print(Image.open(pic_path).size)
                             im = Image.open(pic_path).resize((224, 224))
+                            
                             #print(np.as_array(im))
                             tim = T.ToTensor()(im)
                             #print(tim)
                             
+                            print("Image size after resize")
+                            print(tim.shape)
+
                             #print(count)
                             pic_tensor += tim
                             
