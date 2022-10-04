@@ -147,8 +147,8 @@ class AudioVisualSeparator(nn.Module):
         grid_warp = torch.from_numpy(warpgrid(B, 256, T, warp=True)).to(self.device)
         #mixed_audio_simple = mixed_audio[:, 0]
         original_mixed_audio = X['mixed_audio']
-        #mixed_audio = F.grid_sample(mixed_audio, grid_warp)
-        #audio_mags = F.grid_sample(audio_mags, grid_warp)
+        mixed_audio = F.grid_sample(mixed_audio, grid_warp)
+        audio_mags = F.grid_sample(audio_mags, grid_warp)
 
         log_mixed_audio = torch.log(mixed_audio).detach()
 
