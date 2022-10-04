@@ -104,17 +104,17 @@ class AudioVisualSeparator(nn.Module):
         vid_ids = X['ids'].view(-1)           # + [X['obj2']['id']]
         bs = X["detections"].shape[0]
         
-        print("audio_mags before")
-        print(X['audio_mags'].shape)
+        # print("audio_mags before")
+        # print(X['audio_mags'].shape)
         audio_mags = X['audio_mags'].view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
-        print(audio_mags.shape)
-        print("audio_mags before")
+        # print(audio_mags.shape)
+        # print("audio_mags after")
 
-        print("mixed_audio before")
-        print(X['mixed_audio'].shape)
+        # print("mixed_audio before")
+        # print(X['mixed_audio'].shape)
         mixed_audio = X['mixed_audio'].view(bs, 1, 512, 256) + 1e-10
-        print(mixed_audio.shape)
-        print("mixed_audio before")
+        # print(mixed_audio.shape)
+        # print("mixed_audio before")
 
         detected_objects = X['detections']
 
@@ -129,7 +129,7 @@ class AudioVisualSeparator(nn.Module):
         #     break
 
         classes = X['classes'].view(-1) - 1
-        print(classes)
+        #print(classes)
         
         # for idx, _ in enumerate(classes):
         #     classes[idx] -= 1
@@ -152,11 +152,11 @@ class AudioVisualSeparator(nn.Module):
 
         log_mixed_audio = torch.log(mixed_audio).detach()
 
-        print("log_mixed_audio before")
-        print(log_mixed_audio.shape)
+        # print("log_mixed_audio before")
+        # print(log_mixed_audio.shape)
         log_mixed_audio = log_mixed_audio.view(bs, 1, 256, 256)
-        print(log_mixed_audio.shape)
-        print("log_mixed_audio after")
+        # print(log_mixed_audio.shape)
+        # print("log_mixed_audio after")
         
         ''' mixed audio and audio are after STFT '''
         

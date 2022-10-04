@@ -63,8 +63,12 @@ class BaseTrainer:
         t = []
         ind = [1]
         
+        lost_loss_train = []
+        t_train = []
+        ind_train = [1]
+        
         for epoch in range(self.start_epoch, self.epochs + 1):
-            result = self._train_epoch(epoch, lost_loss, t, ind)
+            result = self._train_epoch(epoch, lost_loss, t, ind, lost_loss_train, t_train, ind_train)
 
             # save logged informations into log dict
             log = {'epoch': epoch}

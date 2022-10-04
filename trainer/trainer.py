@@ -51,7 +51,7 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
-    def _train_epoch(self, epoch, lost_loss, t, ind):
+    def _train_epoch(self, epoch, lost_loss, t, ind, lost_loss_train, t_train, ind_train):
         print("start train epoch")
         """
         Training logic for an epoch
@@ -61,6 +61,7 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.train_metrics.reset()
         
+        lost_loss1 = []
 
         for batch_idx, pick in enumerate(self.data_loader):
             
@@ -73,11 +74,11 @@ class Trainer(BaseTrainer):
             #pick['mixed_audio'] = pick['mixed_audio'].to(self.device)
             bs = pick["detections"].shape[0] * pick["detections"].shape[1]
             
-            print("detections before")
-            print(pick['detections'].shape)
+            # print("detections before")
+            # print(pick['detections'].shape)
             pick['detections'] = pick['detections'].view(bs, 3, 224, 224)
-            print(pick['detections'].shape)
-            print("detections before")
+            # print(pick['detections'].shape)
+            # print("detections before")
 
             #pick['detections'] = pick['detections'].to(self.device)
             #pick['classes'] = pick['classes'].to(self.device)
@@ -205,19 +206,19 @@ class Trainer(BaseTrainer):
 
             vec = vec.to(self.model.device)
             
-            print("weights before")
-            print(weights.shape)
+            # print("weights before")
+            # print(weights.shape)
             weights = weights.view((int(bs / 2), 2, 1, 256, 256))
-            print(weights.shape)
-            print("weights after")
+            # print(weights.shape)
+            # print("weights after")
 
-            print("pred + masks before")
-            print((predicted_masks * vec).shape)
-            print(ground_masks.shape)
+            # print("pred + masks before")
+            # print((predicted_masks * vec).shape)
+            # print(ground_masks.shape)
             coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
-            print("pred + masks after")
-            print((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256).shape)
-            print(ground_masks.view(int(bs / 2), 2, 1, 256, 256).shape)
+            # print("pred + masks after")
+            # print((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256).shape)
+            # print(ground_masks.view(int(bs / 2), 2, 1, 256, 256).shape)
             
             '''
             coseparation_loss = 0
@@ -245,6 +246,8 @@ class Trainer(BaseTrainer):
             #consistency_loss.backward(retain_graph=True)
             coseparation_loss.backward()
 
+
+            lost_loss1 += [coseparation_loss.cpu().detach().numpy()]
 
             # lost_loss += [coseparation_loss.cpu().detach().numpy()]
             # t += [ind[0]]
@@ -281,6 +284,24 @@ class Trainer(BaseTrainer):
             if batch_idx == self.len_epoch:
                 break
         log = self.train_metrics.result()
+
+
+        lost_loss_train += [np.mean(lost_loss1)]
+        t_train += [ind_train[0]]
+        ind_train[0] += 1
+        
+        fig, axs = plt.subplots(1, 1)
+        axs.set_title("Loss - epoch: " + str(epoch))
+        axs.set_ylabel('loss')
+        axs.set_xlabel('epochs')
+        
+        #cop = np.asarray(lost_loss)
+        plt.plot(t_train, lost_loss_train)
+        #plt.label("epoch: " + str(epoch))
+        plt.show()
+        plt.savefig('train_loss.png')
+        np.save('train_loss', lost_loss_train)
+
 
         if self.do_validation:
             val_log = self._valid_epoch(epoch, lost_loss, t, ind)
@@ -463,8 +484,8 @@ class Trainer(BaseTrainer):
         plt.plot(t, lost_loss)
         #plt.label("epoch: " + str(epoch))
         plt.show()
-        plt.savefig('loss.png')
-        np.save('loss', lost_loss)
+        plt.savefig('val_loss.png')
+        np.save('val_loss', lost_loss)
 
         print("done validate epoch")
         return self.valid_metrics.result()
