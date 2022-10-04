@@ -80,20 +80,29 @@ class MusicDataset(Dataset):
         ids = [int(X['obj1']['id'])] + [int(X['obj2']['id'])]
         pick_dict['ids'] = np.vstack(ids)
 
+        self_audios = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
+
         classes = [int(c[0]) for c in X['obj1']['images'][:]]
         if len(classes) == 1:
             classes += [16]
+        else:
+            self_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
 
+        self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
+        
         classes += [int(c[0]) for c in X['obj2']['images'][:]]
         if len(classes) == 3:
             classes += [16]
+        else:
+            self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
 
         pick_dict['classes'] = np.vstack(classes)
 
-        self_audios = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0),
-                       np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0),
-                       np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0),
-                       np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]  #array includes both videos data - 2 values
+        # ,
+        #                np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0),
+        #                np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0),
+        #                np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]  #array includes both videos data - 2 values
+        
         pick_dict['audio_mags'] = np.vstack(self_audios)
 
         self_phases = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][1]), axis=0),
@@ -105,12 +114,17 @@ class MusicDataset(Dataset):
 
 #Image.fromarray(c[1].astype(np.uint8), 'RGB')
         detected_objects = [self.transform(c[1][:,:,::-1] / 255).unsqueeze(0) for c in X['obj1']['images'][:]]
-        if len(detected_objects) == 1:
-            detected_objects += [0 * detected_objects[0]]
+        # if len(detected_objects) == 1:
+        #     detected_objects += [0 * detected_objects[0]]
 
         detected_objects += [self.transform(c[1][:,:,::-1] / 255).unsqueeze(0) for c in X['obj2']['images'][:]]
-        if len(detected_objects) == 3:
-            detected_objects += [0 * detected_objects[2]]    #all detected objects in both video's'
+        # if len(detected_objects) == 3:
+        #     detected_objects += [0 * detected_objects[2]]    #all detected objects in both video's'
+
+        num_objs = len(detected_objects)
+
+
+
 
      #detected_objects /= 255
      
@@ -134,7 +148,6 @@ class MusicDataset(Dataset):
         mixed_audio = []
         mix = X['mix'][0]
         mix = np.expand_dims(mix, axis=0)
-        num_objs = 4
         for n in range(num_objs):
             mixed_audio.append(torch.FloatTensor(mix).unsqueeze(0))
         
@@ -143,7 +156,6 @@ class MusicDataset(Dataset):
         mixed_phases = []
         mix_p = X['mix'][1]
         mix_p = np.expand_dims(mix_p, axis=0)
-        num_objs = 4
         for n in range(num_objs):
             mixed_phases.append(torch.FloatTensor(mix_p).unsqueeze(0))
         
