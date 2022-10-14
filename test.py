@@ -17,6 +17,7 @@ import numpy as np
 import soundfile
 import torch.nn.functional as F
 from PIL import Image
+import os
 
 def warpgrid(bs, HO, WO, warp=True):
     # meshgrid
@@ -34,6 +35,21 @@ def warpgrid(bs, HO, WO, warp=True):
     grid = grid.astype(np.float32)
     return grid
 
+def plot_spectrogram(spec, id, round, dir, name, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
+    fig, axs = plt.subplots(1, 1)
+    axs.set_title(title or 'Spectrogram (db)')
+    axs.set_ylabel(ylabel)
+    axs.set_xlabel('frame')
+    im = axs.imshow(librosa.power_to_db(spec.cpu()), origin='lower', aspect=aspect)
+    if xmax:
+        axs.set_xlim((0, xmax))
+    fig.colorbar(im, ax=axs)
+    plt.show(block=False)
+    im_name = '[round ' + str(round) + '] - test_spectrogram_' + name + "_vid_id_" + id + '.png'
+    path = r'/home/dsi/ravivme/run-model/Servers-DeepProject/DeepProject-Servers/specs/'
+    plt.savefig(path + im_name)
+    plt.savefig(dir + im_name)
+    
 def main(config):
     logger = config.get_logger('test')
 
@@ -71,8 +87,19 @@ def main(config):
     total_loss = 0.0
     total_metrics = torch.zeros(len(metric_fns))
 
+    round = 0
+
     with torch.no_grad():
         for i, pick in enumerate(tqdm(data_loader)):
+            round += 1
+
+            root = f"/dsi/gannot-lab/datasets/Music/Graphs/"
+            dir = os.path.join(root, "round_" + str(round))
+            try:
+                os.mkdir(dir)
+            except OSError:
+                pass
+
             print("->" + str(i) + "\n")
             #data, target = data.to(device), target.to(device)
             #output = model(data)
@@ -137,6 +164,21 @@ def main(config):
             plt.show()
             plt.savefig('./detect4.png')
 
+
+            # spectrograms
+            audio_mags = output['audio_mags'] #.view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
+            #ground_mask = pick["ground_masks"]
+            mixed_audio = output["mixed_audios"]
+            vid_ids = output["videos"]
+
+            plot_spectrogram(audio_mags[0][0], "audio_" + str(vid_ids[0]), round)
+            plot_spectrogram(audio_mags[2][0], "audio_" + str(vid_ids[2]), round)
+            plot_spectrogram(ground_masks[0][0] + ground_masks[1][0], "mask_" + str(vid_ids[0]), round)
+            plot_spectrogram(ground_masks[2][0] + ground_masks[3][0], "mask_" + str(vid_ids[2]), round)
+            plot_spectrogram(mixed_audio[0][0], "mix_" + str(vid_ids[0]) + " & " + str(vid_ids[2]), round)
+            
+            # for i, mask in enumerate(ground_mask):
+            #     plot_spectrogram(mask[0], str(vid_ids[i]))
 
 
             print("vid id : " + str(vid))
