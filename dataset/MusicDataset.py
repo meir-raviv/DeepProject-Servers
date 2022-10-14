@@ -85,6 +85,7 @@ class MusicDataset(Dataset):
         classes = [int(c[0]) for c in X['obj1']['images'][:]]
         if len(classes) == 1:
             classes += [16]
+            self_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
         else:
             self_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
 
@@ -93,6 +94,7 @@ class MusicDataset(Dataset):
         classes += [int(c[0]) for c in X['obj2']['images'][:]]
         if len(classes) == 3:
             classes += [16]
+            self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
         else:
             self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
 
@@ -114,12 +116,12 @@ class MusicDataset(Dataset):
 
 #Image.fromarray(c[1].astype(np.uint8), 'RGB')
         detected_objects = [self.transform(c[1][:,:,::-1] / 255).unsqueeze(0) for c in X['obj1']['images'][:]]
-        # if len(detected_objects) == 1:
-        #     detected_objects += [0 * detected_objects[0]]
+        if len(detected_objects) == 1:
+            detected_objects += [0 * detected_objects[0]]
 
         detected_objects += [self.transform(c[1][:,:,::-1] / 255).unsqueeze(0) for c in X['obj2']['images'][:]]
-        # if len(detected_objects) == 3:
-        #     detected_objects += [0 * detected_objects[2]]    #all detected objects in both video's'
+        if len(detected_objects) == 3:
+            detected_objects += [0 * detected_objects[2]]    #all detected objects in both video's'
 
         num_objs = len(detected_objects)
 

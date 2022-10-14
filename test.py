@@ -19,6 +19,12 @@ import torch.nn.functional as F
 from PIL import Image
 import os
 
+
+classes_dict = {-2:"None", -1:"None", 0:'Banjo', 1:'Cello', 2:'Drum', 3:'Guitar',
+                       4:'Harp', 5:'Harmonica', 6:'Oboe-clarinet', 7:'Piano-xylophone', 8:'Saxophone',
+                       9:'Trombone', 10:'Trumpet', 11:'Violin', 12:'Flute',
+                       13:'Accordion', 14:'tuba', 15:"None", 98:'erhu'}
+
 def warpgrid(bs, HO, WO, warp=True):
     # meshgrid
     x = np.linspace(-1, 1, WO)
@@ -45,10 +51,11 @@ def plot_spectrogram(spec, id, round, dir, name, title=None, ylabel='freq_bin', 
         axs.set_xlim((0, xmax))
     fig.colorbar(im, ax=axs)
     plt.show(block=False)
-    im_name = '[round ' + str(round) + '] - test_spectrogram_' + name + "_vid_id_" + id + '.png'
+    im_name = '[round ' + str(round) + '] - test_spectrogram_' + name + "_vid_id_" + str(id) + '.png'
     path = r'/home/dsi/ravivme/run-model/Servers-DeepProject/DeepProject-Servers/specs/'
-    plt.savefig(path + im_name)
-    plt.savefig(dir + im_name)
+    root = f"/dsi/gannot-lab/datasets/Music/Graphs/"
+    #plt.savefig(path + im_name)
+    plt.savefig(os.path.join(root, dir, im_name))
     
 def main(config):
     logger = config.get_logger('test')
@@ -100,6 +107,9 @@ def main(config):
             except OSError:
                 pass
 
+            dir = "round_" + str(round)
+            #dir = os.path.join(dir, "/")
+
             print("->" + str(i) + "\n")
             #data, target = data.to(device), target.to(device)
             #output = model(data)
@@ -132,7 +142,7 @@ def main(config):
             weights = weights.view((int(bs / 2), 2, 1, 256, 256))
             loss = loss_fn((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
             
-            i = 4
+            i = 0
             vid = output['videos']
             im = output['detections'][i].T.detach().cpu().numpy()
             print(output['detections'].shape)
@@ -169,14 +179,44 @@ def main(config):
             audio_mags = output['audio_mags'] #.view(bs, 1, 512, 256)            #['stft'][0], X['obj2']['audio']['stft'][0]]  #array includes both videos data - 2 values
             #ground_mask = pick["ground_masks"]
             mixed_audio = output["mixed_audios"]
-            vid_ids = output["videos"]
+            vid_ids = output["videos"].cpu().numpy()
+            classes = output["ground_labels"].cpu().numpy()
+            predicted_spectrograms = output["predicted_spectrograms"]
 
-            plot_spectrogram(audio_mags[0][0], "audio_" + str(vid_ids[0]), round)
-            plot_spectrogram(audio_mags[2][0], "audio_" + str(vid_ids[2]), round)
-            plot_spectrogram(ground_masks[0][0] + ground_masks[1][0], "mask_" + str(vid_ids[0]), round)
-            plot_spectrogram(ground_masks[2][0] + ground_masks[3][0], "mask_" + str(vid_ids[2]), round)
-            plot_spectrogram(mixed_audio[0][0], "mix_" + str(vid_ids[0]) + " & " + str(vid_ids[2]), round)
+
+
+            '''Plotting Spectrograms'''
+            plot_spectrogram(spec=audio_mags[0][0], id=str(vid_ids[0]), round=round, dir=dir, name="audio_")
+            plot_spectrogram(spec=audio_mags[2][0], id=str(vid_ids[2]), round=round, dir=dir, name="audio_")
             
+            plot_spectrogram(spec=ground_masks[0][0] + ground_masks[1][0], id=str(vid_ids[0]), round=round, dir=dir, name="ground_mask_")
+            plot_spectrogram(spec=ground_masks[2][0] + ground_masks[3][0], id=str(vid_ids[2]), round=round, dir=dir, name="ground_mask_")
+            
+            plot_spectrogram(spec=mixed_audio[0][0], id=str(vid_ids[0]) + " & " + str(vid_ids[2]), round=round, dir=dir, name="mix_")
+
+            plot_spectrogram(spec=predicted_masks[0][0], id=str(vid_ids[0]), round=round, dir=dir,
+                             name="pred_mask_instrument_1_"+classes_dict[classes[0]])
+            plot_spectrogram(spec=predicted_masks[1][0], id=str(vid_ids[0]), round=round, dir=dir,
+                             name="pred_mask_instrument_2_"+classes_dict[classes[1]])
+            plot_spectrogram(spec=predicted_masks[2][0], id=str(vid_ids[2]), round=round, dir=dir,
+                             name="pred_mask_instrument_3_"+classes_dict[classes[2]])
+            plot_spectrogram(spec=predicted_masks[3][0], id=str(vid_ids[2]), round=round, dir=dir,
+                             name="pred_mask_instrument_4_"+classes_dict[classes[3]])
+            
+
+            plot_spectrogram(spec=predicted_spectrograms[0][0], id=str(vid_ids[0]), round=round, dir=dir,
+                             name="predicted_spectrograms_instrument_1_"+classes_dict[classes[0]])
+            plot_spectrogram(spec=predicted_spectrograms[1][0], id=str(vid_ids[0]), round=round, dir=dir,
+                             name="predicted_spectrograms_instrument_2_"+classes_dict[classes[1]])
+            plot_spectrogram(spec=predicted_spectrograms[2][0], id=str(vid_ids[2]), round=round, dir=dir,
+                             name="predicted_spectrograms_instrument_3_"+classes_dict[classes[2]])
+            plot_spectrogram(spec=predicted_spectrograms[3][0], id=str(vid_ids[2]), round=round, dir=dir,
+                             name="predicted_spectrograms_instrument_4_"+classes_dict[classes[3]])
+            
+
+
+
+
             # for i, mask in enumerate(ground_mask):
             #     plot_spectrogram(mask[0], str(vid_ids[i]))
 
@@ -192,6 +232,7 @@ def main(config):
             
             phase_mix = output['audio_phases'][i][0].squeeze().detach().cpu().numpy()
             mag_mix = output['original_mixed_audio'][i][0].squeeze().detach().cpu().numpy()
+            #mag_mix = output['mixed_audios'][i][0].squeeze().detach().cpu().numpy()
             
             print("**************")
             print(mag_mix.shape)
@@ -242,6 +283,8 @@ def main(config):
             soundfile.write(path, audio.T, 11025, format='wav')
             
 
+            path_to_spec = os.path.join(root, dir, f"instrument_1_" + classes_dict[classes[0]] +"_audio.wav")
+            soundfile.write(path_to_spec, audio.T, 11025, format='wav')
 
 
 
@@ -256,6 +299,8 @@ def main(config):
             soundfile.write(path, audio.T, 11025, format='wav')
 
 
+            path_to_spec = os.path.join(root, dir, f"instrument_2_" + classes_dict[classes[1]] +"_audio.wav")
+            soundfile.write(path_to_spec, audio.T, 11025, format='wav')
             
 
 
@@ -270,6 +315,8 @@ def main(config):
             soundfile.write(path, audio.T, 11025, format='wav')
 
             
+            path_to_spec = os.path.join(root, dir, f"instrument_3_" + classes_dict[classes[2]] +"_audio.wav")
+            soundfile.write(path_to_spec, audio.T, 11025, format='wav')
 
 
             spec = pred_mag3.astype(np.complex) * np.exp(1j*phase_mix)
@@ -282,6 +329,9 @@ def main(config):
             path = f"/dsi/gannot-lab/datasets/Music/saved_example3.wav"
             soundfile.write(path, audio.T, 11025, format='wav')
 
+
+            path_to_spec = os.path.join(root, dir, f"instrument_4_" + classes_dict[classes[3]] +"_audio.wav")
+            soundfile.write(path_to_spec, audio.T, 11025, format='wav')
 
 #            IPython.display.Audio(path)
 
