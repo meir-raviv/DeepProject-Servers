@@ -194,11 +194,11 @@ class Trainer(BaseTrainer):
             #coseparation_loss = 0
             vec = torch.ones(predicted_masks.shape)
 
-            v = torch.ones((32, 1, 5, 5))
+            #v = torch.ones((32, 1, 5, 5))
 
-            for idx in range(len(labels)-1, -1, -2):  
-                 if labels[idx] == 15:
-                    vec[idx] = torch.zeros(vec[idx].shape)
+            # for idx in range(len(labels)-1, -1, -2):  
+            #      if labels[idx] == 15:
+            #         vec[idx] = torch.zeros(vec[idx].shape)
                     #v[idx] = torch.zeros(v[idx].shape)
                 #if labels[idx] != 15:
                     #predicted_masks[idx-1] += predicted_masks[idx]
@@ -208,32 +208,46 @@ class Trainer(BaseTrainer):
             
             # print("weights before")
             # print(weights.shape)
-            weights = weights.view((int(bs / 2), 2, 1, 256, 256))
+            
+            #weights = weights.view((int(bs / 2), 2, 1, 256, 256))
+            
             # print(weights.shape)
             # print("weights after")
 
             # print("pred + masks before")
             # print((predicted_masks * vec).shape)
             # print(ground_masks.shape)
-            coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
+            
+            #coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
+            
             # print("pred + masks after")
             # print((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256).shape)
             # print(ground_masks.view(int(bs / 2), 2, 1, 256, 256).shape)
             
-            '''
+            # coseparation_loss = 0
+
+            # for bat in predicted_masks:
+            #     coseparation_loss += self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256))
+            
+
+
+            
             coseparation_loss = 0
-
-            for idx in range(len(labels)-1, -1, -2):
-                if labels[idx] == 15:
-                    #predicted_masks[idx] = predicted_masks[idx] * 0
-                    coseparation_loss += self.criterion(predicted_masks[idx - 1], ground_masks[idx])#, weights)
+            for idx, bat in enumerate(predicted_masks):
+                count = 1
+                if labels[idx * 8 + 1] == 15:
+                    coseparation_loss += self.criterion(bat[0], ground_masks[idx][0])#, weights)
                 else:
-                    coseparation_loss += self.criterion(predicted_masks[idx - 1] + predicted_masks[idx], ground_masks[idx])#, weights)
-            #coseparation_loss = torch.FloatTensor(coseparation_loss)
-            #coseparation_loss = coseparation_loss /32
+                    coseparation_loss += self.criterion(bat[0] + bat[1], ground_masks[idx][0])#, weights)
+                    count += 1
 
+                if labels[idx * 8 + 3] == 15:
+                    coseparation_loss += self.criterion(bat[count], ground_masks[idx][count])#, weights)
+                else:
+                    coseparation_loss += self.criterion(bat[count] + bat[count + 1], ground_masks[idx][count])#, weights)
+                
             coseparation_loss = torch.mean(coseparation_loss)
-            '''
+            
             #print("-------")
             #print(pred_labels.shape)
             #print(labels.shape)
