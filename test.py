@@ -52,11 +52,28 @@ def plot_spectrogram(spec, id, round, dir, name, title=None, ylabel='freq_bin', 
     fig.colorbar(im, ax=axs)
     plt.show(block=False)
     im_name = '[round ' + str(round) + '] - test_spectrogram_' + name + "_vid_id_" + str(id) + '.png'
-    path = r'/home/dsi/ravivme/run-model/Servers-DeepProject/DeepProject-Servers/specs/'
+    #path = r'/home/dsi/ravivme/run-model/Servers-DeepProject/DeepProject-Servers/specs/'
     root = f"/dsi/gannot-lab/datasets/Music/Graphs/"
     #plt.savefig(path + im_name)
     plt.savefig(os.path.join(root, dir, im_name))
     
+    
+def plot_mask(mask, id, round, dir, name, title=None, ylabel='value', aspect='auto', xmax=None):
+    fig, axs = plt.subplots(1, 1)
+    axs.set_title(title or 'Mask')
+    axs.set_ylabel(ylabel)
+    axs.set_xlabel('frame')
+    im = axs.imshow(mask.cpu(), origin='lower', aspect=aspect)
+    if xmax:
+        axs.set_xlim((0, xmax))
+    fig.colorbar(im, ax=axs)
+    plt.show(block=False)
+    im_name = '[round ' + str(round) + '] - test_mask_' + name + "_vid_id_" + str(id) + '.png'
+    #path = r'/home/dsi/ravivme/run-model/Servers-DeepProject/DeepProject-Servers/specs/'
+    root = f"/dsi/gannot-lab/datasets/Music/Graphs/"
+    #plt.savefig(path + im_name)
+    plt.savefig(os.path.join(root, dir, im_name))
+
 def main(config):
     logger = config.get_logger('test')
 
@@ -194,13 +211,13 @@ def main(config):
             
             plot_spectrogram(spec=mixed_audio[0][0], id=str(vid_ids[0]) + " & " + str(vid_ids[2]), round=round, dir=dir, name="mix_")
 
-            plot_spectrogram(spec=predicted_masks[0][0], id=str(vid_ids[0]), round=round, dir=dir,
+            plot_mask(spec=predicted_masks[0][0], id=str(vid_ids[0]), round=round, dir=dir,
                              name="pred_mask_instrument_1_"+classes_dict[classes[0]])
-            plot_spectrogram(spec=predicted_masks[1][0], id=str(vid_ids[0]), round=round, dir=dir,
+            plot_mask(spec=predicted_masks[1][0], id=str(vid_ids[0]), round=round, dir=dir,
                              name="pred_mask_instrument_2_"+classes_dict[classes[1]])
-            plot_spectrogram(spec=predicted_masks[2][0], id=str(vid_ids[2]), round=round, dir=dir,
+            plot_mask(spec=predicted_masks[2][0], id=str(vid_ids[2]), round=round, dir=dir,
                              name="pred_mask_instrument_3_"+classes_dict[classes[2]])
-            plot_spectrogram(spec=predicted_masks[3][0], id=str(vid_ids[2]), round=round, dir=dir,
+            plot_mask(spec=predicted_masks[3][0], id=str(vid_ids[2]), round=round, dir=dir,
                              name="pred_mask_instrument_4_"+classes_dict[classes[3]])
             
 

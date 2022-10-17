@@ -192,7 +192,7 @@ class Trainer(BaseTrainer):
             # should we mul with weights the result of loss?
             
             #coseparation_loss = 0
-            vec = torch.ones(predicted_masks.shape)
+            #vec = torch.ones(predicted_masks.shape)
 
             #v = torch.ones((32, 1, 5, 5))
 
@@ -204,7 +204,7 @@ class Trainer(BaseTrainer):
                     #predicted_masks[idx-1] += predicted_masks[idx]
             #print(v.view(16, 2, 1, 5, 5))
 
-            vec = vec.to(self.model.device)
+            ##vec = vec.to(self.model.device)
             
             # print("weights before")
             # print(weights.shape)
@@ -231,22 +231,39 @@ class Trainer(BaseTrainer):
             
 
 
-            
+            original_bs = 1
             coseparation_loss = 0
-            for idx, bat in enumerate(predicted_masks):
-                count = 1
-                if labels[idx * 8 + 1] == 15:
-                    coseparation_loss += self.criterion(bat[0], ground_masks[idx][0])#, weights)
-                else:
-                    coseparation_loss += self.criterion(bat[0] + bat[1], ground_masks[idx][0])#, weights)
-                    count += 1
+            count = 1
+            idx = 0
+            bat = predicted_masks
+            if labels[idx * original_bs + 1] == 15:
+                coseparation_loss += self.criterion(bat[0], ground_masks[0])#, weights)
+            else:
+                coseparation_loss += self.criterion(bat[0] + bat[1], ground_masks[0])#, weights)
+                count += 1
 
-                if labels[idx * 8 + 3] == 15:
-                    coseparation_loss += self.criterion(bat[count], ground_masks[idx][count])#, weights)
-                else:
-                    coseparation_loss += self.criterion(bat[count] + bat[count + 1], ground_masks[idx][count])#, weights)
+            if labels[idx * original_bs + 3] == 15:
+                coseparation_loss += self.criterion(bat[count], ground_masks[count])#, weights)
+            else:
+                coseparation_loss += self.criterion(bat[count] + bat[count + 1], ground_masks[count])#, weights)
                 
-            coseparation_loss = torch.mean(coseparation_loss)
+            coseparation_loss = torch.sum(coseparation_loss)
+
+
+            #print(predicted_masks.shape)
+            # for idx, bat in enumerate(predicted_masks):
+                # count = 1
+                # if labels[idx * original_bs + 1] == 15:
+                #     coseparation_loss += self.criterion(bat[0], ground_masks[idx][0])#, weights)
+                # else:
+                #     coseparation_loss += self.criterion(bat[0] + bat[1], ground_masks[idx][0])#, weights)
+                #     count += 1
+
+                # if labels[idx * original_bs + 3] == 15:
+                #     coseparation_loss += self.criterion(bat[count], ground_masks[idx][count])#, weights)
+                # else:
+                #     coseparation_loss += self.criterion(bat[count] + bat[count + 1], ground_masks[idx][count])#, weights)
+                
             
             #print("-------")
             #print(pred_labels.shape)
@@ -272,7 +289,8 @@ class Trainer(BaseTrainer):
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', sum_loss.item())
             for met in self.metric_ftns:
-                self.train_metrics.update(met.__name__, met(pred_labels, labels))
+                #self.train_metrics.update(met.__name__, met(pred_labels, labels))
+                pass
                 #add mags   self.train_metrics.update(met.__name__, met(labels, pred_labels))
 
             if batch_idx % self.log_step == 0:
@@ -430,6 +448,8 @@ class Trainer(BaseTrainer):
                 # #vec = vec.view(int(bs / 2), 2)    
 
                 # coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256))
+               
+                '''
                 vec = torch.ones(predicted_masks.shape)
 
                 for idx in range(len(labels)-1, -1, -2):  
@@ -441,8 +461,26 @@ class Trainer(BaseTrainer):
                 vec = vec.to(self.model.device)
                 weights = weights.view((int(bs / 2), 2, 1, 256, 256))
                 coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), (ground_masks * vec).view(int(bs / 2), 2, 1, 256, 256), weights)
+                '''
                 
+                original_bs = 1
+                coseparation_loss = 0
+                count = 1
+                idx = 0
+                bat = predicted_masks
+                if labels[idx * original_bs + 1] == 15:
+                    coseparation_loss += self.criterion(bat[0], ground_masks[0])#, weights)
+                else:
+                    coseparation_loss += self.criterion(bat[0] + bat[1], ground_masks[0])#, weights)
+                    count += 1
+
+                if labels[idx * original_bs + 3] == 15:
+                    coseparation_loss += self.criterion(bat[count], ground_masks[count])#, weights)
+                else:
+                    coseparation_loss += self.criterion(bat[count] + bat[count + 1], ground_masks[count])#, weights)
                 
+                coseparation_loss = torch.sum(coseparation_loss)
+    
                 lost_loss1 += [coseparation_loss.cpu().detach().numpy()]
 
 
@@ -466,8 +504,8 @@ class Trainer(BaseTrainer):
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', sum_loss.item())
-                for met in self.metric_ftns:
-                    self.valid_metrics.update(met.__name__, met(pred_labels, labels))
+                # for met in self.metric_ftns:
+                #     self.valid_metrics.update(met.__name__, met(pred_labels, labels))
                 self.writer.add_image('input', make_grid(pick['detections'].cpu(), nrow=8, normalize=True))
 
         # add histogram of model parameters to the tensorboard

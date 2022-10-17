@@ -11,7 +11,7 @@
         "type": "MusicDataLoader",
         "args":{
             "data_dir": "/dsi/gannot-lab/datasets/Music/Batches",
-            "batch_size": 8,
+            "batch_size": 1,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2
