@@ -18,6 +18,7 @@ import soundfile
 import torch.nn.functional as F
 from PIL import Image
 import os
+from torchmetrics import ScaleInvariantSignalDistortionRatio
 
 
 classes_dict = {-2:"None", -1:"None", 0:'Banjo', 1:'Cello', 2:'Drum', 3:'Guitar',
@@ -96,6 +97,17 @@ def main(config):
 
     round = 0
 
+    try:
+        log_sdr = open(r"./SDR.txt", "x")
+    except:
+        log_sdr = open(r"./SDR.txt", "w")
+
+    log_sdr.flush()
+    #log_sdr.write("\nTime Stamp : " + str(dt.date(dt.now())) + " , " + str(dt.now().strftime("%H:%M:%S")) + "\n")
+    log_sdr.write("\nSDR results : \n")
+
+    si_sdr = ScaleInvariantSignalDistortionRatio()
+    sdr_list = []
     with torch.no_grad():
         for i, pick in enumerate(tqdm(data_loader)):
             round += 1
@@ -142,6 +154,21 @@ def main(config):
             weights = weights.view((int(bs / 2), 2, 1, 256, 256))
             loss = loss_fn((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
             
+
+
+
+            '''
+            SI-SDR calculation
+            '''
+            
+            target = (predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256)
+            preds = ground_masks.view(int(bs / 2), 2, 1, 256, 256)
+            sdr_list += [si_sdr(preds, target)]
+
+
+
+
+
             i = 0
             vid = output['videos']
             im = output['detections'][i].T.detach().cpu().numpy()
@@ -365,6 +392,7 @@ def main(config):
         met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)
     })
     logger.info(log)
+    log_sdr.write(si_sdr)
 
 
 if __name__ == '__main__':
