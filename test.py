@@ -304,7 +304,7 @@ def main(config):
             #spec = pred_mag.detach().cpu().numpy().astype(np.complex) * np.exp(1j*phase_mix)
             
             audio = librosa.istft(spec, hop_length=256, center=True, length=65535)#.tolist()#, rate)
-            audio = np.clip(audio, -1., 1.)        
+            audio = np.clip(audio, -1., 1.)
 
             path = f"/dsi/gannot-lab/datasets/Music/saved_example.wav"
             soundfile.write(path, audio.T, 11025, format='wav')

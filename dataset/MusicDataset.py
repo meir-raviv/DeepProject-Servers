@@ -81,22 +81,28 @@ class MusicDataset(Dataset):
         pick_dict['ids'] = np.vstack(ids)
 
         self_audios = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
+        ground_audios = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['wave'][0]), axis=0)]
 
         classes = [int(c[0]) for c in X['obj1']['images'][:]]
         if len(classes) == 1:
             classes += [16]
             self_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
+            ground_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['wave'][0]), axis=0)]
         else:
             self_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][0]), axis=0)]
+            ground_audios += [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['wave'][0]), axis=0)]
 
         self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
+        ground_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
         
         classes += [int(c[0]) for c in X['obj2']['images'][:]]
         if len(classes) == 3:
             classes += [16]
             self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
+            ground_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['wave'][0]), axis=0)]
         else:
             self_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]
+            ground_audios += [np.expand_dims(torch.FloatTensor(X['obj2']['audio']['wave'][0]), axis=0)]
 
         pick_dict['classes'] = np.vstack(classes)
 
@@ -105,7 +111,10 @@ class MusicDataset(Dataset):
         #                np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0),
         #                np.expand_dims(torch.FloatTensor(X['obj2']['audio']['stft'][0]), axis=0)]  #array includes both videos data - 2 values
         
+#        print(len(a) for a in self_audios)
         pick_dict['audio_mags'] = np.vstack(self_audios)
+ #       print(len(ground_audios))
+  #      pick_dict['ground_audios'] = np.vstack(ground_audios)
 
         self_phases = [np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][1]), axis=0),
                             np.expand_dims(torch.FloatTensor(X['obj1']['audio']['stft'][1]), axis=0),
