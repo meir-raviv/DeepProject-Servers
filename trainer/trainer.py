@@ -13,6 +13,12 @@ from torch import Tensor
 #import torchvision.transforms as T
 import torch.nn.functional as F
 from torchvision import transforms as T
+from asteroid import filterbanks
+from asteroid_filterbanks.enc_dec import Filterbank, Encoder, Decoder
+from asteroid_filterbanks import FreeFB
+import asteroid_filterbanks
+
+
 
 def warpgrid(bs, HO, WO, warp=True):
     # meshgrid
@@ -285,39 +291,43 @@ class Trainer(BaseTrainer):
             # print((predicted_masks * vec).shape)
             # print(ground_masks.shape)
             
-            coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
+            # coseparation_loss = self.criterion((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256), ground_masks.view(int(bs / 2), 2, 1, 256, 256), weights)
             
             # print("pred + masks after")
             # print((predicted_masks * vec).view(int(bs / 2), 2, 1, 256, 256).shape)
             # print(ground_masks.view(int(bs / 2), 2, 1, 256, 256).shape)
 
-            coseparation_loss = 0
+            #coseparation_loss = 0
 
-            # print("****audio phases shape****")
-            # print(output["audio_phases"].shape)
+            print("****audio phases shape****")
+            print(output["audio_phases"].shape)
 
-            phase_mix = output['audio_phases'].view(int(bs/2), 2, 512, 256).cpu().numpy()#.detach().cpu().numpy()     # [:, 0]
-            mag_mix = output['original_mixed_audio'].view(int(bs/2), 2, 512, 256).cpu().numpy()#.detach().cpu().numpy()     # [:, 0]
+
+
+            phase_mix = output['audio_phases'].view(int(bs/2), 2, 512, 256)#.detach().cpu().numpy()     # [:, 0]
+            mag_mix = output['original_mixed_audio'].view(int(bs/2), 2, 512, 256)#.detach().cpu().numpy()     # [:, 0]
             B = bs#mag_mix.shape[0]
             stft_frame = 1022
             pred_masks_ = output['predicted_masks']
             grid_unwarp = torch.from_numpy(warpgrid(B, stft_frame//2+1, pred_masks_.size(3), warp=False)).to(self.model.device)
             pred_masks_linear = F.grid_sample(pred_masks_, grid_unwarp).view(int(bs/2), 2, 512, 256)
             
-            # print("pred_mask_linear shape")
-            # print(pred_masks_linear.shape)
+            print("pred_mask_linear shape")
+            print(pred_masks_linear.shape)
             
-            # print("mag mix shape")
-            # print(mag_mix.shape)
-
-            pred_mag = mag_mix * pred_masks_linear.clone().detach().cpu().numpy() # [:, 0]
-
-            # print("pred_mag shape")
-            # print(pred_mag.shape)
+            print("mag mix shape")
+            print(mag_mix.shape)
             
-            spec = pred_mag.astype(np.complex) * np.exp(1j*phase_mix)
+            pred_mag = mag_mix * pred_masks_linear#.clone().detach().cpu().numpy() # [:, 0]
+
+            print("pred_mag shape")
+            print(pred_mag.shape)
+            
+            # spec = pred_mag.astype(np.complex) * np.exp(1j*phase_mix)
+            spec = asteroid_filterbanks.transforms.from_magphase(pred_mag, phase_mix, dim = -2)
+
             # spec = spec.view(bs/2, 2, 512, 256)
-            audio = librosa.istft(spec, hop_length=256, center=True, length=65535)              #.tolist()#, rate)
+            audio = torch.istft(spec, hop_length=256, center=True, length=65535, n_fft=)              #.tolist()#, rate)
             pred_audio = np.clip(audio, -1., 1.)
 
 
@@ -341,11 +351,10 @@ class Trainer(BaseTrainer):
             
             
             
-            # print("pred audio shape:")
-            # print(pred_audio.shape)
-            # print("ground audio shape:")
-            # print(ground_audio.shape)
-
+            print("pred audio shape:")
+            print(pred_audio.shape)
+            print("ground audio shape:")
+            print(ground_audio.shape)
             # print("ground audio shape:")
             # print(output["ground_audios"].shape)
 
@@ -355,16 +364,15 @@ class Trainer(BaseTrainer):
 
             ground_audio = ground_audio[:, 0, :]
 
-            # print("ground audio np shape:")
-            # print(ground_audio.shape)
+            print("ground audio np shape:")
+            print(ground_audio.shape)
 
             pred_audio = np.sum(pred_audio, axis=1)
             
-            # print("pred audio np shape:")
-            # print(pred_audio.shape)
+            print("pred audio np shape:")
+            print(pred_audio.shape)
 
-            coseparation_loss += scale_invariant_signal_distortion_ratio(preds=Variable(torch.from_numpy(pred_audio), requires_grad=True),
-                                                                        target=Variable(torch.from_numpy(ground_audio), requires_grad=True))
+            coseparation_loss = scale_invariant_signal_distortion_ratio(preds=T.ToTensor(requires_grad_=True)(pred_audio), target=T.ToTensor(requires_grad_=True)(ground_audio))
 
             '''
             coseparation_loss = 0
@@ -386,14 +394,14 @@ class Trainer(BaseTrainer):
 
             lamda = 0.01
             #consistency_loss = loss.ce_loss(pred_labels, Variable(labels, requires_grad=False)) * lamda
-            sum_loss = coseparation_loss.mean() #+ consistency_loss
+            sum_loss = coseparation_loss #+ consistency_loss
             
             self.optimizer.zero_grad()
             #consistency_loss.backward(retain_graph=True)
-            coseparation_loss.mean().backward()
+            coseparation_loss.backward()
 
 
-            lost_loss1 += [coseparation_loss.mean().clone().cpu().detach().numpy()]#.detach()
+            lost_loss1 += [coseparation_loss.cpu().detach().numpy()]
 
             # lost_loss += [coseparation_loss.cpu().detach().numpy()]
             # t += [ind[0]]
